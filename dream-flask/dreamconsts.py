@@ -4,7 +4,6 @@ UPSCALE_FOLDER = 'outputs/img-upscales'
 MODELS_FOLDER = 'models/ldm/stable-diffusion/'
 QUEUE_FILE = "queue_file.json"
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-BAD_CHARS = [' ', '#', '!', '$', '.', '/', '\\', ':','\'', '`', '>', '<', '=', '\"','(', ')']
 
 IMAGE_DIMS = [ f'{8 * n}' for n in range(32, 129, 8) ]
 
