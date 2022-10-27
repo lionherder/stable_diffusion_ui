@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import subprocess
 import sys
 import traceback
 
@@ -19,7 +20,7 @@ from flask import request, send_file, redirect
 from werkzeug.routing import BaseConverter
 from werkzeug.utils import secure_filename
 
-from dreamconsts import UPLOADS_FOLDER, BAD_CHARS
+from dreamconsts import UPLOADS_FOLDER
 from dreamconsts import ALLOWED_EXTENSIONS, UPSCALE_FOLDER, GENERATED_FOLDER
 from dreamutils import get_generated_images, get_uploaded_images, get_upscaled_images, get_filehashes_for_session
 from themes_page import themes_page
@@ -124,25 +125,26 @@ def update_session_info(session_id, update_request=True):
 	return session_info
 
 def clean_name(name, replace='_'):
-	return ''.join( [ c if c.isalnum() or c == "_" or c == "-"  else replace for c in name ] )[:25]
-	# return ''.join( [ c if c not in BAD_CHARS else replace for c in name ])
+	return ''.join( [ c if c.isalnum() or c == "_" or c == "-"  else replace for c in name ] )[:36]
 
 def allowed_file(filename):
 	return '.' in filename and \
 			filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def upscale_image(session_id, filename, scale=2, use_gpu=False, tile=400):
-	cmd = ''
+	cmd = []
 	if (use_gpu and not g_queue['active']):
 		print("Upscaling with GPU")
 		t2i.model = None
 		t2i.sampler = None
 		torch.cuda.empty_cache()
-		cmd = f"python inference_realesrgan.py -i {filename} -o {UPSCALE_FOLDER}/{session_id} -t {tile} --fp32 -s {scale} --suffix upscale"
+		cmd = ['python', 'inference_realesrgan.py', '-i', filename, '-o', f'{UPSCALE_FOLDER}/{session_id}', '-t', f'{tile}','--fp32', '-s', f'{scale}', '--suffix', 'upscale']
 	else:
 		print("Upscaling with CPU")
-		cmd = f"CUDA_VISIBLE_DEVICES='' python inference_realesrgan.py -i {filename} -o {UPSCALE_FOLDER}/{session_id} -t {tile} --fp32 -s {scale} --suffix upscale"
-	os.system(f'{cmd}')
+		cmd = ['python', 'inference_realesrgan.py', '-i', filename, '-o', f'{UPSCALE_FOLDER}/{session_id}', '-t', f'{tile}','--fp32', '-s', f'{scale}', '--suffix', 'upscale']
+	print(cmd)
+	output = subprocess.run(cmd, capture_output=True)
+	print(output)	
 
 @app.route("/", methods = ['GET', 'POST'])
 def index():
@@ -158,23 +160,17 @@ def index():
 
 	if (page_name == "landing"):
 		return generate_page(session_info)
-
-	if (page_name == "share"):
+	elif (page_name == "share"):
 		return ShareImage(session_info)
-
-	if (page_name == "generate"):
+	elif (page_name == "generate"):
 		return GenerateImage(session_info)
-
-	if (page_name == "cleanup_page"):
+	elif (page_name == "cleanup_page"):
 		return CleanUp(session_info)
-
-	if (page_name == "upscale_page"):
+	elif (page_name == "upscale_page"):
 		return UpscaleFile(session_info)
-
-	if (page_name == "upload_page"):
+	elif (page_name == "upload_page"):
 		return UploadFile(session_info)
-
-	if (page_name == "themes_page"):
+	elif (page_name == "themes_page"):
 		return CreateThemes(session_info)
 
 	return landing_page(session_info)
