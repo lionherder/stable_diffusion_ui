@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+	
+{% block title %}Generate Image{% endblock %}
+{% block content %}
+	<div class="alert alert-dark">Welcome back, <b>{{ session_id }}</b></div>
+	<form action='/generate' method='POST'>
+		<input type='hidden' name='session_id' value="{{ session_id }}">
+		<br>
+		<label>Prompt: </label>
+		<input id='prompt' size='60' autofocus value='{{ session_info["prompt"] }}' name='prompt'>
+		<a onClick="clearPrompt()">X</a>
+		<!--<a href='/prompt' target='_details'> Add details</a><br><br>-->
+		<br><br>
+		
+		<label>Steps:</label>
+		<input size='3' value='{{ session_info["steps"] }}' name='steps'>
+	
+		<label>Samples:</label>
+		<input size='3' value='{{ session_info["batch_size"] }}' name='samples'>
+	
+		<label>Prompt Weight:</label>
+		<input size='3' value='{{ session_info["cfg_scale"] }}' name='cfg_scale'>
+
+		<label>Seed (-1 = random):</label>
+		<input id='seed' size='12' value='{{ session_info["seed"] }}' name='seed'/>
+		<a onClick="resetSeed()">X</a>
+
+		<br><br>
+		Width
+		<select name='width'>
+		{% for dim in image_dims %}
+			<option value='{{ dim }}'
+				{% if session_info['width'] == dim %}
+					selected
+				{% endif %}
+				>{{dim}}</option>
+			</option>
+		{% endfor %}
+		</select>
+
+		Height
+		<select name='height'>
+		{% for dim in image_dims %}
+			<option value='{{ dim }}'
+				{% if session_info['height'] == dim %}
+					selected
+				{% endif %}
+				>{{dim}}</option>
+			</option>
+		{% endfor %}
+		</select>
+
+		<label>Strength init_image (0.0 <> 1.0):</label>
+		<input size='3' value='{{ session_info["strength"] }}' name='strength'>
+
+		<br><br>
+		<select id='init_image' name='init_image'>
+			<option value='none'>No Init Image Selected (Default)</option>
+			{% for image in (output_images + upload_images) %}
+				<option value='{{ image }}' 
+				{% if session_info['init_image'] == image %}
+					selected
+				{% endif %}
+				>{{ image | basename }}</option>
+			{% endfor %}
+		</select>
+
+		<br><br>
+		<input type='submit' name='button' value='Generate'>
+		<input type='submit' name='button' value='Refresh'>
+		<input type='submit' name='button' value='Reset'>
+	</form>
+
+	<br>
+	Status: {{ session_info['status_msg'] }}
+	<br><br>
+
+	{% for image in output_images %}
+		<a target='_image' href='/{{ image }}'>
+			<img class='img-thumbnail' src='/{{ image }}' width='128' height='128'>
+		</a>
+	{% endfor %}
+
+	<br><br>
+	{% for image in upload_images %}
+		<a target='_image' href='/{{ image }}'>
+			<img class='img-thumbnail' src='/{{ image }}' width='128' height='128'>
+		</a>
+	{% endfor %}
+
+{% endblock %}
