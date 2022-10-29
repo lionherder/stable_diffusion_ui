@@ -16,12 +16,11 @@ from random import randint
 from ldm.simplet2i import T2I
 
 from flask import Flask
-from flask import request, send_file, redirect
+from flask import request, send_file
 from werkzeug.routing import BaseConverter
 from werkzeug.utils import secure_filename
 
-from dreamconsts import UPLOADS_FOLDER
-from dreamconsts import ALLOWED_EXTENSIONS, UPSCALE_FOLDER, GENERATED_FOLDER
+from dreamconsts import ALLOWED_EXTENSIONS, UPSCALE_FOLDER, GENERATED_FOLDER, UPLOADS_FOLDER
 from dreamutils import get_generated_images, get_uploaded_images, get_upscaled_images, get_filehashes_for_session
 from themes_page import themes_page
 from generate_page import generate_page
@@ -29,7 +28,6 @@ from cleanup_page import cleanup_page
 from upscale_page import upscale_page
 from landing_page import landing_page
 from upload_page import upload_page
-from share_page import share_page
 
 app = Flask(__name__, template_folder="dream-flask/templates")
 app.config['MAX_CONTENT_LENGTH'] = 10 ** 8
@@ -160,8 +158,6 @@ def index():
 
 	if (page_name == "landing"):
 		return generate_page(session_info)
-	elif (page_name == "share"):
-		return ShareImage(session_info)
 	elif (page_name == "generate"):
 		return GenerateImage(session_info)
 	elif (page_name == "cleanup_page"):
@@ -322,8 +318,6 @@ def GenerateImage(session_info):
 		return upload_page(session_info)
 	elif (button == "Themes"):
 		return themes_page(session_info)
-	elif (button == "Share"):
-		return share_page(session_info)
 
 	if (len(prompt) > 0):
 		print(f'Generating:')
@@ -423,18 +417,6 @@ def UploadFile(session_info):
 
 	update_filehashes_for_session(session_info, refresh=False)
 	return upload_page(session_info)
-
-def ShareImage(session_info):
-	session_id = session_info['session_id']
-	session_info = update_session_info(session_id)
-	button = session_info['button']
-
-	if (button == 'Return'):
-		return generate_page(session_info)
-	elif (button == 'Reset'):
-		update_filehashes_for_session(session_info, True)
-
-	return share_page(session_info)
 
 @app.route("/share/<string:share_uuid>")
 def ShareFile(share_uuid):
