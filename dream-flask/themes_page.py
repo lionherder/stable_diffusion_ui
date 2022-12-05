@@ -1,42 +1,38 @@
 from flask import escape
-from dreamconsts import PROMPT_EXTRAS
+from dream_consts import PROMPT_EXTRAS
 import base_pages
 
-def themes_page(session_info):
-	session_id = session_info.get('session_id')
-	theme_prompt = session_info.get('theme_prompt', '')
-	themes = session_info.get('themes', [])
+def themes_page(session_info, session_id):
+	user_info = session_info.get_user(session_id)
+	page_info = user_info.get_themes_page_info()
+	theme_prompt = page_info.get('theme_prompt', '')
+	themes = page_info.get('themes')
 
 	if (len(themes) == 0 and len(theme_prompt) > 0):
 		themes = [ theme.strip() for theme in theme_prompt.split(',') ]
 	print(f'Themes: {themes}')
 	page = base_pages.header_section("Prompt Themes")
 	page += "	<body>"
-	page += base_pages.navbar_section()	
+	page += base_pages.navbar_section(session_id)
 
-	page += "<div class='container-fluid'>"
+	page += "<div class='flex-container'>"
 	page += "	<form action='/' method='POST'>"
 	page += "	<input type='hidden' name='page_name' value='themes_page'>"
 	page += f"	<input type='hidden' name='session_id' value='{session_id}'>"
-	page += "		<label>Theme: </label>"
-	page += f"		<input size='120' autofocus value='{escape(theme_prompt)}' name='theme_prompt'>"
-	page += "		<br><br>"
+	page += base_pages.generate_label_input("Theme", 'theme_prompt', escape(theme_prompt), 120)
+	page += "</div>"
 
-	page += "		<div class='table-responsive-xxl'>"
 	for theme in sorted(PROMPT_EXTRAS.keys()):
-		page += f'<b>{theme.capitalize()}</b>'
-		page += "<br>"
-		page += "			<table>"
+		page += "<div class='flex-container' style='align-items: center;flex-wrap: wrap;flex-direction: row;'>"
+		page += f"	<b>{theme.capitalize()}</b>"
 		for prompt in sorted(PROMPT_EXTRAS[theme]):
 			checked = 'checked' if prompt in themes else ''
-			page += f"			<input type='checkbox' {checked} name='themes' value='{prompt}'/> {prompt}"
-		page += "			</table>"
-		page += "<br>"
-	page += "		</div>"
-	page += "	<br>"
-	page += "		<button class='btn btn-primary' type='submit' name='button' value='Generate'>Generate</button>"
-	page += "		<button class='btn btn-primary' type='submit' name='button' value='Reset'>Reset</button>"
-	page += "		<button class='btn btn-primary' type='submit' name='button' value='Return'>Return</button>"
+			page += "<div class='flex-container' style='height: 12px;flex-direction: row;align-items: center;gap: 2px;'>"
+			page += f"	<input type='checkbox' {checked} name='themes' value='{prompt}'/>"
+			page += f"	<p style='padding: 0px; white-space: nowrap'>{prompt}</p>"
+			page += "</div>"
+		page += "</div>"
+	page += base_pages.buttons_section(['Generate', 'Return', 'Reset'])
 	page += "</div>"
 	page += "</body></html>"
 

@@ -1,9 +1,25 @@
-OUTPUT_FOLDER = 'outputs/img-samples'
-UPLOADS_FOLDER = 'outputs/img-uploads'
-UPSCALE_FOLDER = 'outputs/img-upscales'
-QUEUE_FILE = "queue_file.json"
+GENERATED_FOLDER = 'outputs/img-samples'
+WORKBENCH_FOLDER = 'outputs/img-workbench'
+THUMBNAILS_FOLDER = 'outputs/img-thumbnails'
+PLAYGROUND_FOLDER = 'outputs/img-playground'
+
+JS_FILES = "dream-flask/js"
+CSS_FILES = "dream-flask/css"
+FAVICON = "dream-flask/icons/favicon.ico"
+
+MODELS_FOLDER = 'models/ldm/stable-diffusion/'
+
+SD_API_PORT = 7860
+SD_API_HOST = "http://127.0.0.1"
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-BAD_CHARS = [' ', '#', '!', '$', '.', '/', '\\', ':','\'', '`']
+
+OPTIONS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/options"
+UPSCALE_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/extra-single-image"
+TXT2IMG_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/txt2img"
+IMG2IMG_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/img2img"
+PROGRESS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/progress"
+
+IMAGE_DIMS = [ f'{8 * n}' for n in range(16, 129, 8) ]
 
 # Common additions for details
 PROMPT_EXTRAS = {}
@@ -20,9 +36,9 @@ PROMPT_EXTRAS['details'] = ['4k', '8k', 'HD', 'photorealistic', 'hyper detail', 
 	'cinematic', 'Unreal Engine', 'Octane Rendering', 'V-Ray', 'bokeh', 'contrast',
 	'symmetric', 'intricate', 'volumetric lighting', 'soft lightning', 'raytracing', 'colorful',
 	'wallpaper', 'fog', 'holography', 'lens flare', 'anamorphic',
-	'luminescence', 'rule of thirds', 'center framing', 'blur']
+	'luminescence', 'rule of thirds', 'center framing', 'blur', 'seemless texture']
 
-PROMPT_EXTRAS['artists'] = ['Alex Grey', 'Jacek Yerka', 'Roger Dean', 'HR Giger', 'Gustav Klimt', 'Richard Avedon',
+PROMPT_EXTRAS['artists'] = ['Bill Watterson', 'Christian Bravery', 'Alex Grey', 'Jacek Yerka', 'Roger Dean', 'HR Giger', 'Gustav Klimt', 'Richard Avedon',
 	'Vogue', 'Baron Adolphe De Meyer', 'Alexander Jansson', 'Albert Bierstadt', 'Lee Madgwick',
 	'Rembrandt', 'Viktor Antonov', 'Sergey Kolesov', 'Eric Wallis', 'Charlie Bowater',
 	'Daniela Uhlig', 'Wlop', 'Gil Elvgren', 'Rebeca Saray', 'Bayard Wu', 'Patrick Demarchelier',
@@ -32,10 +48,10 @@ PROMPT_EXTRAS['artists'] = ['Alex Grey', 'Jacek Yerka', 'Roger Dean', 'HR Giger'
 
 PROMPT_EXTRAS['mediums'] = ['postcard', 'tarot card', 'watercolor', 'gouche', 'matte', 'painting',
 	'oil painting', 'color pencil', 'pen and ink', 'photo', 'render',
-	'pencil', 'graphite', 'digital']
+	'pencil', 'graphite', 'digital', 'lithograph']
 
 PROMPT_EXTRAS['styles'] = ['cyberpunk', 'industrialpunk', 'trending on artstation', 'deviantart', 'fantasy', 'dark fantasy',
-	'futuristic', 'folklore', 'concept art', 'witchcore', 'lovecraftian', 'baroque', 'retrofuturism'
+	'futuristic', 'folklore', 'concept art', 'witchcore', 'lovecraftian', 'baroque', 'retrofuturism',
 	'devilcore', 'vaporwave', 'pixel', 'diffusion', 'fractal', 'fractalism', 'vintage', 'black and white',
 	'illustration', 'medeival', 'monochrome', 'noir', 'synthwave', 'darksynth', 'grimdark',
 	'aetherpunk', 'CGsociety', 'technopunk']
