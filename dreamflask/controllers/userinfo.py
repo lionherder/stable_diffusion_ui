@@ -129,7 +129,7 @@ class user_session():
 		if (len(page_info) < 1):
 			return
 		
-		print(f"Updating page info for '{page_name}'")
+		#print(f"Updating page info for '{page_name}'")
 		if page_name == 'upscale_page':
 			self.update_upscale_page_info(page_info, with_form)
 		elif page_name == 'generate_page':
@@ -150,7 +150,7 @@ class user_session():
 			self._pages[page_name] = page_info.copy()
 	
 	def get_page_info(self, page_name):
-		print(f"Getting page info for '{page_name}'")
+		#print(f"Getting page info for '{page_name}'")
 		return self._pages.get(page_name)
 
 	def get_landing_page_info(self):

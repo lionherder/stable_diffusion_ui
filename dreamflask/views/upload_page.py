@@ -1,8 +1,8 @@
-import base_pages
+from . import base_pages
 
 def upload_page(session_db, session_id):
-	user_info = session_db.get_user(session_id)
-	page_info = user_info.get_upload_page_info()
+	user_info = session_db.get_user_by_id(session_id)
+	page_info = user_info.page_manager.get_upload_page_info()
 	status_msg = page_info['status_msg']
 
 	page = base_pages.header_section("Upload")
@@ -18,21 +18,15 @@ def upload_page(session_db, session_id):
 	page += "			<input accept='.jpg, .png' class='file' multiple id='file' type='file' name='file'>"
 	page += "			<label for='file'>Select Files</label>"
 	page += "				<div id='file-selections'>"
-	#page += "					<div class='file-selection'>"
-	#page += "						<div class='file-name' id='file-name'>00114-1312200173-midjourneyart___.png - 421.74</div>"
-	#page += "					</div>"
-	#page += "					<div class='file-selection'>"
-	#page += "						<div class='file-name' id='file-name'>00114-1312200173-midjourneyart___.png - 421.74</div>"
-	#page += "					</div>"
 	page += "				</div>"
 	page += f"			</label>"
 	page += f"		</div>"
 
 	page += "<br>"
-	page += base_pages.buttons_section(['Upload', 'Return', 'Clear', 'Clean Files'])
+	page += base_pages.buttons_section(['Upload', 'Return', 'Refresh', 'Clear', 'Clean Files'])
 	page += "	</form>"
 
-	page += base_pages.workbench_images_section(user_info.filemanager.get_workbench_fileinfos())
+	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), session_db, session_id)
 
 	page += "</div>"
 	page += "</body></html>"

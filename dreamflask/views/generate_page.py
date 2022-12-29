@@ -1,12 +1,13 @@
 import os
 
-import base_pages
+from . import base_pages
 from flask import escape
 from dream_consts import IMAGE_DIMS
+from dreamflask.controllers.sessions_manager import *
 
-def generate_page(session_info, session_id):
-	user_info = session_info.get_user(session_id)
-	page_info = user_info.get_generate_page_info()
+def generate_page(sessions_db, session_id):
+	user_info = sessions_db.get_user_by_id(session_id)
+	page_info = user_info.page_manager.get_generate_page_info()
 	status_msg = page_info.get('status_msg')
 
 	page = base_pages.header_section("Generate")
@@ -55,7 +56,7 @@ def generate_page(session_info, session_id):
 	page += "			</select>"
 	page += "		</label>"
 
-	models = sorted(session_info.get_models(), key = lambda x: x.lower())
+	models = sorted(sessions_db.get_models(), key = lambda x: x.lower())
 	page += "		<label>Model&nbsp"
 	page += "			<select id='model' name='model'>"
 	for model in models:
@@ -67,7 +68,7 @@ def generate_page(session_info, session_id):
 
 	page += "		<label>Sampler&nbsp"
 	page += "			<select id='sampler' name='sampler'>"
-	for sampler in session_info.get_samplers():
+	for sampler in sessions_db.get_samplers():
 		page += f"			<option value='{sampler}' {'selected' if page_info.get('sampler')==sampler else 'k_euler_a'}>{sampler}</option>"
 	page += "			</select>"
 	page += "		</label>"
@@ -78,9 +79,10 @@ def generate_page(session_info, session_id):
 	page += "		<label>Init Image&nbsp"
 	page += "			<select style='id='init_image' name='init_image'>"
 	page += "				<option value='none'>No Init Image</option>"
-	for file_info in (user_info.filemanager.get_generated_fileinfos() + user_info.filemanager.get_workbench_fileinfos()):
-		selected = "selected" if (file_info.hash == page_info.get('init_image', '')) else ""
-		page += f"			<option value='{file_info.hash}' {selected}>{os.path.basename(file_info.filename)}</option>"
+	for file_infos in (user_info.file_manager.get_generated_file_infos() + user_info.file_manager.get_workbench_file_infos()):
+		file_info = file_infos[0]
+		selected = "selected" if (file_info.id == page_info.get('init_image', '')) else ""
+		page += f"			<option value='{file_info.id}' {selected}>{os.path.basename(file_info.filename)}</option>"
 	page += "			</select>"
 	page += "		</label>"
 	page += base_pages.generate_label_input('Influence [Less <0.0 - 1.0> More]', 'strength', page_info.get('strength'), 3)
@@ -88,8 +90,8 @@ def generate_page(session_info, session_id):
 	page += base_pages.buttons_section(['Generate', 'Refresh', 'Reset', 'Upscale', 'Upload',  'Clean Files', 'Themes', 'Montage', 'Playground'])
 	page += "  </form>"
 
-	page += base_pages.generated_images_section(user_info.filemanager.get_generated_fileinfos(), cols=int(page_info['cols']))
-	page += base_pages.workbench_images_section(user_info.filemanager.get_workbench_fileinfos(), cols=int(page_info['cols']))
+	page += base_pages.generated_images_section(user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, cols=int(page_info['cols']))
+	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, cols=int(page_info['cols']))
 
 	page += "</div>"
 	page += "</body></html>"

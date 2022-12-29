@@ -3,16 +3,19 @@ import requests
 import os
 from dream_consts import GENERATED_FOLDER, PLAYGROUND_FOLDER, PROGRESS_API_URL, THUMBNAILS_FOLDER, WORKBENCH_FOLDER, MODELS_FOLDER
 from dream_consts import OPTIONS_API_URL, UPSCALE_API_URL, TXT2IMG_API_URL, IMG2IMG_API_URL
+from dreamflask.libs.sd_logger import SD_Logger, logger_levels
+
+log = SD_Logger("FlaskServer", logger_levels.INFO)
 
 def convert_bytes(bytes_number):
-    tags = [ "Bytes", "Kb", "Mb", "Gb", "Tb" ]
-    i = 0
-    double_bytes = bytes_number
-    while (i < len(tags) and  bytes_number >= 1024):
-            double_bytes = bytes_number / 1024.0
-            i = i + 1
-            bytes_number = bytes_number / 1024
-    return str(round(double_bytes, 2)) + " " + tags[i]
+	tags = [ "Bytes", "Kb", "Mb", "Gb", "Tb" ]
+	i = 0
+	bytes_number = double_bytes = int(bytes_number)
+	while (i < len(tags) and bytes_number >= 1024):
+			double_bytes = bytes_number / 1024.0
+			i = i + 1
+			bytes_number = bytes_number / 1024
+	return str(round(double_bytes, 2)) + " " + tags[i]
 
 def generate_progress(session_id):
 	resp = requests.get(PROGRESS_API_URL)

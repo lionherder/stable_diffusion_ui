@@ -1,9 +1,9 @@
-import base_pages
+from . import base_pages
 from dream_consts import IMAGE_DIMS
 
-def montage_page(session_info, session_id):
-	user_info = session_info.get_user(session_id)
-	page_info = user_info.get_montage_page_info()
+def montage_page(sessions_db, session_id):
+	user_info = sessions_db.get_user_by_id(session_id)
+	page_info = user_info.page_manager.get_montage_page_info()
 	status_msg = page_info['status_msg']
 
 	page = base_pages.header_section("Montage")
@@ -46,8 +46,8 @@ def montage_page(session_info, session_id):
 	page += "			<div style='cursor: pointer;' class='chip' onClick='clearCheckboxes()'>Clear Selections</div>"
 	page += "		</div>"
 
-	page += base_pages.checkbox_table_section("Generated Images", user_info.filemanager.get_generated_fileinfos(), "g_", selected_list=page_info.get('files'))
-	page += base_pages.checkbox_table_section("Workbench Images", user_info.filemanager.get_workbench_fileinfos(), "w_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Generated Images", user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Workbench Images", user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_", selected_list=page_info.get('files'))
 
 	page += "	</form>"
 	page += "	</body></html>"

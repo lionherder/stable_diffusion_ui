@@ -1,3 +1,51 @@
+/* Root stuff for the top level */
+:root {
+	--title-color: #a9c2ff;
+	--banner-color: #a9c2ff;
+	--label-color: #a9c2ff;
+	--button-color: #a9c2ff;
+	--gallery-title-color: #a9c2ff;
+	--chip-color: #6f98ff;
+	--hover-color: #888;
+}
+
+.content_404 {
+	display: flex
+}
+
+.col_404 {
+	display: flex;
+
+	flex-direction: column;
+	justify-content: center;
+
+	align-items: center;
+
+	background-color: var(--banner-color);
+
+	background: #ccc;
+	border: 1px solid #333;
+	border-radius: 4px;
+	padding: 2px;
+	margin: 1%;
+}
+
+.cell_404 {
+	display: flex;
+
+	width: 99%;
+	height: 100%;
+	max-width: fit-content;
+	max-height: fit-content;
+	
+	background: #333;
+	border: 1px solid #333;
+	border-radius: 4px;
+	padding: 2px;
+
+	text-align: center;
+}
+
 .container {
 	display: flex;
 	flex-direction: column;
@@ -8,13 +56,38 @@
 	display: flex;
 	flex-direction: column;
 	border-radius: 4px;
+	font-family: 'Times New Roman', Times, serif;
 }
 
+/* Error Page Layouts */
+.error_404 {
+	display: flex;
+	flex-wrap: wrap;
+	margin: 1%;
+	font-weight: bold;
+	font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif
+}
+
+/* Textarea layout */
+
 textarea {
+	border-color: rgb(63, 117, 255);
+	border-radius: 4px;
 	width: 100%;
 	padding: 4px;
 	word-wrap: none;
+	background: rgb(195, 213, 255);
+	transition: 0.2s;
+	outline: #8af;
+	outline-style: double;
+	margin: 0px 4px 0px 4px;
 }
+
+textarea:focus {
+	background-color: #fff;
+}
+
+/* Collapsible Sections for Images */
 
 .collapsible {
 	display: flex;
@@ -27,7 +100,7 @@ textarea {
 
 .active, .collapsible:hover {
 	transition: 0.2s;
-	background-color: #555;
+	background-color: var(--hover-color);
 }
 
 .content {
@@ -36,6 +109,31 @@ textarea {
 	overflow: hidden;
 	transition: max-height 0.2s ease-out;
 }
+
+/* Themes Page layout */
+
+.theme-label {
+	display: flex;
+	gap: 0px;
+	padding: 0px;
+}
+
+.theme-container {
+	display: flex;
+	justify-content: flex-start;
+	background: #a9c2ff;
+	margin: 1%;
+	border-radius: 4px;
+	flex-wrap: wrap;
+	gap: 0px;
+	padding: 0px;
+}
+
+.theme-item {
+	display: flex;
+}
+
+/* Some base FLEX layout */
 
 .flex-container {
 	display: flex;
@@ -48,8 +146,8 @@ textarea {
 	align-items: center;
 	justify-content: space-between;
 	border-radius: 4px;
-	background-color: #ccc;
-	padding: 2px;
+	background-color: var(--label-color);
+	padding: 2px 2px 2px 4px;
 	gap: 2px;
 }
 
@@ -65,34 +163,36 @@ textarea {
 	border-radius: 4px;
 }
 
+/* Title and Banner layout */
+
 .page-title {
 	text-align: center;
 	border-radius: 4px;
-	background-color: #aaa;
+	background-color: var(--title-color);
 	padding: 2px;
 	font-size: large;
-	font-weight: bold;
 	margin: 1% 1% 0% 1%;
 }
 
 .banner {
 	text-align: center;
-	font-size: large;
 	border-radius: 4px;
-	background-color: rgb(134, 172, 255);
+	background-color: var(--banner-color);
 	padding: 12px;
 	margin: 1%;
 }
 
 .banner-status {
 	border-radius: 4px;
-	background-color: #ccc;
+	background-color: var(--banner-color);
 	padding: 10px;
 	margin: 1%;
 }
 
+/* Text Input Fields */
+
 input[type=text] {
-	margin: 1%;
+	margin: 2%;
 	padding: 1%;
 }
 
@@ -106,16 +206,10 @@ input:focus + label {
 	outline: -webkit-focus-ring-color auto 2px;
 }
 
-.button-container {
-	display: flex;
-	align-items: center;
-	margin: 1%;
-	flex-direction: row;
-	flex-wrap: wrap;
-}
+/* Chips and dip */
 
 .chip {
-	background-color: #0d6efd;
+	background-color: var(--chip-color);
 	padding: 3px 3px 3px 3px;
 	border-radius: 4px;
 	transition: 0.2s;
@@ -124,13 +218,15 @@ input:focus + label {
 
 .chip:hover {
 	transition: 0.2s;
-	background: #555;
+	background: var(--hover-color);
 }
+
+/* Button Gallery */
 
 .button {
 	display: flex;
 	border-radius: 4px;
-	background: rgb(134, 172, 255);
+	background: var(--button-color);
 	border: none;
 	align-items: center;
 	justify-content: center;
@@ -142,13 +238,23 @@ input:focus + label {
 }
 
 .button:hover {
-	background: #555;
+	background: var(--hover-color);
 }
+
+.button-container {
+	display: flex;
+	align-items: center;
+	margin: 1%;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+/* Image Gallery */
 
 .gallery-title {
 	font-size: large;
 	border-radius: 4px;
-	background-color: #8af;
+	background-color: var(--gallery-title-color);
 	margin: 1%;
 	padding: 4px;
 }
@@ -183,6 +289,7 @@ a.content:hover {
 	transform: scale(1.05);
 }
 
+/* File stuff */
 
 .file {
 	display: flex;

@@ -1,4 +1,4 @@
-import base_pages
+from . import base_pages
 
 def page_404(status_msg):
 	page = base_pages.header_section("404 - Sad AI")

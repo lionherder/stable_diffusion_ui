@@ -1,6 +1,10 @@
 import os
 
 from dream_utils import convert_bytes
+from dreamflask.libs.sd_logger import SD_Logger, logger_levels
+from dreamflask.controllers.image_info import image_info
+
+log = SD_Logger(__name__.split('.')[-1], logger_levels.INFO)
 
 def header_section(page_title, script=''):
 	page = "<!doctype html>"
@@ -49,31 +53,32 @@ def generate_label_input(label_title, label_name, default='', size=3):
 	page += "</label>"
 	return page
 
-
-def checkbox_table_section(title, file_infos, prefix='', selected_list=[], limit=0):
-	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{title}</div>"
+def checkbox_table_section(section_title, file_infos, session_db, session_id, prefix='', selected_list=[], limit=0):
+	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{section_title}</div>"
 	page += "<div class='gallery'>"
-	for idx, file_info in enumerate(file_infos):
-		#print(f"IDX, FILEINFO: {idx}, {file_info}")
-		selected = 'checked' if file_info.hash in selected_list else ''
-		title = f'{os.path.basename(file_info.filename)} [{convert_bytes(file_info.size)}]'
+	for idx, file_obj in enumerate(file_infos):
+		img_info = session_db.get_image_info_by_hash(file_obj[0].id)
+		#log.info(f"IDX, FILEINFO: {idx}, {file_info}")
+		selected = 'checked' if img_info.id in selected_list else ''
+		title = img_info.get_title_text(viewer_id=session_id)
 		page += "	<div class='gallery-img content' style='flex-shrink: 0;'>"
-		page += f"		<img title='{title}' onclick='setCheckboxValue(\"{prefix}_{idx}\", true)' src='/share/{file_info.thumbnail}' width='128' height='128'></img>"
-		page += f"		<input style='margin-bottom: 10%;' type='checkbox' {selected} id='{prefix}_{idx}' name='files' value='{file_info.hash}'/>"
+		page += f"		<img title='{title}' onclick='setCheckboxValue(\"{prefix}_{idx}\", true)' src='/share/{img_info.thumbnail}' width='128' height='128'></img>"
+		page += f"		<input style='margin-bottom: 10%;' type='checkbox' {selected} id='{prefix}_{idx}' name='files' value='{img_info.id}'/>"
 		page += "	</div>"
 		if (limit > 0 and idx > limit):
 			break
 	page += "</div>"
 	return page
 
-def image_table_section(title, file_infos, cols=0, limit=0):
-	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{title}</div>"
+def image_table_section(section_title, file_infos, session_db, session_id, cols=0, limit=0):
+	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{section_title}</div>"
 	page += "<div class='gallery'>"
-	for idx, file_info in enumerate(file_infos):
-		#print(f"IDX, FILEINFO: {idx}, {file_info}")
-		title = f'{os.path.basename(file_info.filename)} [{convert_bytes(file_info.size)}]'
-		page += f"	<a class='gallery-img content' target='_output' title='{title}' href='/share/{file_info.hash}'>"
-		page += f"		<img src='/share/{file_info.thumbnail}' width='128' height='128'>"
+	for idx, file_obj in enumerate(file_infos):
+		img_info = session_db.get_image_info_by_hash(file_obj[0].id)
+		#log.info(f"IDX, FILEINFO: {idx}, {file_info}")
+		title = img_info.get_title_text(viewer_id=session_id)
+		page += f"	<a class='gallery-img content' target='_output' title='{title}' href='/share/{img_info.id}'>"
+		page += f"		<img src='/share/{img_info.thumbnail}' width='128' height='128'>"
 		page += "	</a>"
 		#page += "</div>"
 		if (limit > 0 and idx > limit):
@@ -88,12 +93,12 @@ def buttons_section(button_names):
 	page += "</div>"
 	return page
 
-def generated_images_section(file_infos, cols=0):
-	return image_table_section('Generated Images', file_infos, cols)
+def generated_images_section(file_infos, session_db, session_id, cols=0):
+	return image_table_section('Generated Images', file_infos, session_db, session_id, cols)
 
-def workbench_images_section(file_infos, cols=0):
-	return image_table_section('Workbench Images', file_infos, cols)
+def workbench_images_section(file_infos, session_db, session_id, cols=0):
+	return image_table_section('Workbench Images', file_infos, session_db, session_id, cols)
 
-def playground_image_section(file_infos, cols=0):
-	return image_table_section('Playground Images', file_infos, cols)
+def playground_image_section(file_infos, session_db, session_id, cols=0):
+	return image_table_section('Playground Images', file_infos, session_db, session_id, cols)
 

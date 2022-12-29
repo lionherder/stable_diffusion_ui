@@ -1,13 +1,17 @@
-GENERATED_FOLDER = 'outputs/img-samples'
-WORKBENCH_FOLDER = 'outputs/img-workbench'
-THUMBNAILS_FOLDER = 'outputs/img-thumbnails'
-PLAYGROUND_FOLDER = 'outputs/img-playground'
+GENERATED_FOLDER = 'images/img-samples'
+WORKBENCH_FOLDER = 'images/img-workbench'
+THUMBNAILS_FOLDER = 'images/img-thumbnails'
+PLAYGROUND_FOLDER = 'images/img-playground'
 
-JS_FILES = "dream-flask/js"
-CSS_FILES = "dream-flask/css"
-FAVICON = "dream-flask/icons/favicon.ico"
+IMG_FILES = "dreamflask/images"
+JS_FILES = "dreamflask/js"
+CSS_FILES = "dreamflask/css"
+FAVICON = "dreamflask/icons/favicon.ico"
 
 MODELS_FOLDER = 'models/ldm/stable-diffusion/'
+
+DEV_DB = "sessions_dev.db"
+PROD_DB = "sessions_prod.db"
 
 SD_API_PORT = 7860
 SD_API_HOST = "http://127.0.0.1"

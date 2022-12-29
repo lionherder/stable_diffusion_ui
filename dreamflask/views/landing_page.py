@@ -1,13 +1,9 @@
 import random
-import base_pages
+from . import base_pages
 
 def landing_page(session_db):
 	cols = 5
-	pg_images = []
-	user_ids = session_db.get_user_session_ids()
-	for user_id in user_ids:
-		user_info = session_db.get_user(user_id)
-		pg_images.extend(user_info.filemanager.get_playground_fileinfos())
+	pg_images = session_db.get_all_playground_file_infos()
 	random.shuffle(pg_images)
 
 	page = base_pages.header_section("Create Session")
@@ -20,10 +16,10 @@ def landing_page(session_db):
 	page += "		<label style='white-space: nowrap;padding-left: 4px;margin-right: 10px;' for='session_id'>Session Name&nbsp"
 	page += "			<input name='session_id' type='text' class='form-control' id='session_id'/>"
 	page += "		</label>"
-	page += "			<button style='padding: 0.5%;' class='button' type='submit' value='go' name='button'>Go</button>"
+	page += "			<button style='margin: 0.4%;padding: 0.4%;' class='button' type='submit' value='go' name='button'>GO</button>"
 	page += "	</div>"
 	page += "</form>"
-	page += base_pages.image_table_section("Creations", pg_images, cols=cols, limit=25)
+	page += base_pages.image_table_section("Creations", pg_images, session_db, None, cols=cols, limit=25)
 
 	page += "</div>"
 	page += "</body></html>"
