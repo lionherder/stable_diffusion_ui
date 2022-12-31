@@ -22,6 +22,9 @@ UPSCALE_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/extra-single-image"
 TXT2IMG_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/txt2img"
 IMG2IMG_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/img2img"
 PROGRESS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/progress"
+MODELS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/sd-models"
+SAMPLERS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/samplers"
+UPSCALERS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/upscalers"
 
 IMAGE_DIMS = [ f'{8 * n}' for n in range(16, 129, 8) ]
 

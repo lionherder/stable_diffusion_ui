@@ -12,7 +12,7 @@ WORKBENCH = 'workbench'
 THUMBNAIL = 'thumbnail'
 PLAYGROUND = 'playground'
 
-class image_info():
+class image_item():
 
 	def __init__(self, image_info, owner_id, engine):
 		self._image_info = image_info
@@ -204,7 +204,7 @@ Owner: {self.owner_id}'''
 
 		if (self.show_meta) or (self.owner_id == viewer_id):
 			title += f'''
-Parameters: {self.metadata}
+Info: {self.metadata}
 '''
 		return title
 

@@ -4,12 +4,12 @@ from . import base_pages
 def upscale_page(session_db, session_id):
 	upscalers = session_db.get_upscalers()
 	user_info = session_db.get_user_by_id(session_id)
-	page_info = user_info.page_manager.get_upscale_page_info()
-	status_msg = page_info['status_msg']
+	page_info = user_info.page_manager.get_upscale_page_item()
+	status_msg = page_info.get('status_msg')
 
 	page = base_pages.header_section("Upscale")
 	page += "	<body>"
-	page += base_pages.navbar_section(session_id)
+	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
 	page += base_pages.banner_section(f'Status: {status_msg}', page_name='Upscale Image')
 
 	page += f"	<form method='POST' action='/' enctype='multipart/form-data'>"
@@ -17,8 +17,8 @@ def upscale_page(session_db, session_id):
 	page += f"		<input type='hidden' name='session_id' value='{session_id}'/>"
 	page += "	<div class='flex-container'>"
 	page += "		<label style='gap: 0px;'>Upscale&nbsp"
-	page += f"			<label>2x<input {'checked' if page_info['scale'] == '2' else ''} type='radio' name='scale' id='scale' value='2'></label>"
-	page += f"			<label>4x<input {'checked' if page_info['scale'] == '4' else ''} type='radio' name='scale' id='scale' value='4'></label>"
+	page += f"			<label>2x<input {'checked' if page_info.get('scale') == '2' else ''} type='radio' name='scale' id='scale' value='2'></label>"
+	page += f"			<label>4x<input {'checked' if page_info.get('scale') == '4' else ''} type='radio' name='scale' id='scale' value='4'></label>"
 	page += "		</label>"
 	page += "	</div>"
 
@@ -35,7 +35,7 @@ def upscale_page(session_db, session_id):
 	page += "			<select id='upscale_image' name='upscale_image'>"
 	page += "				<option value='none'>Upscale Image</option>"
 	for file_info in (user_info.file_manager.get_generated_file_infos() + user_info.file_manager.get_workbench_file_infos()):
-		page += f"			<option value='{file_info[0].id}'>{os.path.basename(file_info[0].filename)}</option>"
+		page += f"			<option value='{file_info.id}'>{os.path.basename(file_info.filename)}</option>"
 	page += "			</select>"
 	page += "		</label>"
 	page += "	</div>"

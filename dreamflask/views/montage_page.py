@@ -1,15 +1,20 @@
 from . import base_pages
 from dream_consts import IMAGE_DIMS
 
+image_selections = {
+	'Invert Generated' : 'g_',
+	'Invert Workbench' : 'w_',
+}
+
 def montage_page(sessions_db, session_id):
 	user_info = sessions_db.get_user_by_id(session_id)
-	page_info = user_info.page_manager.get_montage_page_info()
-	status_msg = page_info['status_msg']
+	page_info = user_info.page_manager.get_montage_page_item()
+	status_msg = page_info.get('status_msg')
 
 	page = base_pages.header_section("Montage")
 	page += "<body>"
-	page += base_pages.navbar_section(session_id)
-	page += base_pages.banner_section(f'Status: {status_msg}', "Generate Image Montage")
+	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
+	page += base_pages.banner_section(f'Status: {status_msg}', "Gonna Make a Montage")
 
 	page += "	<form action='/' method='POST'>"
 	page += "		<input type='hidden' name='page_name' value='montage_page'>"
@@ -39,15 +44,14 @@ def montage_page(sessions_db, session_id):
 	page += "	</div>"
 
 	page += base_pages.buttons_section(['Create', 'Return', 'Refresh', 'Clean Files', 'Reset'])
-
-	page += "		<div class='flex-container' style='gap: 2px;'>"
-	page += "			<div style='cursor: pointer;' class='chip' onClick='selectAllImg(\"g_\")'>Invert Generated</div>"
-	page += "			<div style='cursor: pointer;' class='chip' onClick='selectAllImg(\"w_\")'>Invert Workbench</div>"
-	page += "			<div style='cursor: pointer;' class='chip' onClick='clearCheckboxes()'>Clear Selections</div>"
-	page += "		</div>"
+	page += base_pages.image_selection_buttons(image_selections)
 
 	page += base_pages.checkbox_table_section("Generated Images", user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_", selected_list=page_info.get('files'))
 	page += base_pages.checkbox_table_section("Workbench Images", user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_", selected_list=page_info.get('files'))
+
+	page += base_pages.image_selection_buttons(image_selections)
+	page += base_pages.buttons_section(['Create', 'Return', 'Refresh', 'Clean Files', 'Reset'])
+
 
 	page += "	</form>"
 	page += "	</body></html>"

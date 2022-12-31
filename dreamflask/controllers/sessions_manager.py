@@ -1,13 +1,13 @@
 import glob
 import os
 
-from dreamflask.libs.sd_logger import SD_Logger, logger_levels
-from dreamflask.models.sd_model import *
-from dreamflask.controllers.image_info import image_info
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from dreamflask.libs.sd_logger import SD_Logger, logger_levels
+from dreamflask.models.sd_model import *
+from dreamflask.controllers.image_item import image_item
+from dreamflask.controllers.user_manager import user_manager
 from dream_consts import GENERATED_FOLDER
-from .user_manager import user_manager
 
 class sessions_manager():
 
@@ -22,6 +22,8 @@ class sessions_manager():
 		self.info = self._logger.info
 		self.debug = self._logger.debug
 
+		self.init()
+
 	# Reset recreates the DB from the drive
 	def init(self):
 		# Create the db if needed
@@ -30,16 +32,40 @@ class sessions_manager():
 		Base.metadata.create_all(self._engine)
 		self._session = Session(self._engine)
 
+		self.refresh(clean=True)
+		#self.info(f"tables: {Base.metadata.tables.keys()}")
+
+	# Light weight refresh
+	def refresh(self, clean=False):
+		self.info(f"Refreshing users.  Be patient.")
 		# Get userlist from generated folder
-		user_list = glob.glob(f"{GENERATED_FOLDER}/*")
+		user_id_list_disk = glob.glob(f"{GENERATED_FOLDER}/*")
+		user_id_list_db = self.get_user_ids()
 
-		for display_path in user_list:
-			display_name = os.path.basename(display_path)
-			self.info(f"  - init display_name: {display_name}")
-			self._users[display_name] = user_manager(os.path.basename(display_name), self._engine)
-			self._users[display_name].init()
+		# Check the _users in DB
+		if clean:
+			self._users = {}
+		else:
+			for user_id in user_id_list_db:
+				if not user_id in user_id_list_disk:
+					self.info(f"  - Stale user_id: {user_id}")
+					self.remove_user(user_id)
+					del(self._users[user_id])
 
-		self.info(f"tables: {Base.metadata.tables.keys()}")
+		# Re/load the database
+		for user_id_path in user_id_list_disk:
+			user_id = os.path.basename(user_id_path)
+			user_session = self.get_user_by_id(user_id)
+
+			if not user_session:
+				self._users[user_id] = self.add_user(user_id)
+
+			self.info(f"  - init user id: {user_id}")
+			# Refresh if we have, add if we don't
+			if user_session:
+				user_session.refresh()
+			else:
+				self._users[user_id] = self.add_user(user_id)
 
 	def exec_in_session(self, statement):
 		with Session(self._engine) as session:
@@ -53,9 +79,14 @@ class sessions_manager():
 		# Check if the display_name is present
 		with Session(self._engine) as session:
 			self.info(f"Adding session: {user_id}")
-			self._users[user_id] = self._users.get(user_id, user_manager(user_id, self._engine))
-			self._users[user_id].init()
-		return self._user[user_id]
+			self._users[user_id] = user_manager(user_id, self._engine, create=True)
+		return self._users[user_id]
+
+	def remove_user(self, user_id):
+		# TODO: Remove user and all image files
+		user_info = self.get_user_by_id(user_id)
+		if user_info:
+			pass
 
 	def get_users(self):
 		return self._users
@@ -63,15 +94,16 @@ class sessions_manager():
 	def get_user_ids(self):
 		return self._users.keys()
 
-	def get_user_by_id(self, user_id):
+	def get_user_by_id(self, user_id, create=True):
 		if (user_id != None and len(user_id) < 1):
 			return None
 
 		#self.info(f"get display_name: {user_id}")
 		if (not user_id in self._users):
-			self._users[user_id] = user_manager(user_id, self._engine)
-			self._users[user_id].init()
-		return self._users[user_id]
+			if create:
+				self._users[user_id] = self.add_user(user_id)
+
+		return self._users.get(user_id)
 
 	def get_globals(self):
 		return self._globals
@@ -109,15 +141,15 @@ class sessions_manager():
 			if (file_info and len(file_info) > 0):
 				return file_info[0]
 
-	def get_image_info_by_hash(self, img_hash):
+	def get_image_item_by_hash(self, img_hash):
 		file_info = self.get_file_info_by_hash(img_hash)
 		if (file_info):
-			return image_info.from_hash(img_hash, file_info.owner_id, self._engine)
+			return image_item.from_hash(img_hash, file_info.owner_id, self._engine)
 
-	def get_image_info_by_filename(self, filename):
+	def get_image_item_by_filename(self, filename):
 		file_info = self.get_file_info_by_hash(filename)
 		if (file_info):
-			return image_info.from_hash(file_info.id, file_info.owner_id, self._engine)
+			return image_item.from_hash(file_info.id, file_info.owner_id, self._engine)
 
 	def get_hash_by_filename(self, filename):
 		with Session(self._engine) as session:

@@ -23,7 +23,7 @@ def generate_progress(session_id):
 
 def generate_options(page_info):
 	options_request = {
-		"sd_model_checkpoint": page_info['model'],
+		"sd_model_checkpoint": page_info.get('model'),
 		"sd_checkpoint_cache": 0
 	}
 	resp = requests.post(OPTIONS_API_URL, json=options_request)

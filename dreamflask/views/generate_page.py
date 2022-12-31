@@ -4,19 +4,20 @@ from . import base_pages
 from flask import escape
 from dream_consts import IMAGE_DIMS
 from dreamflask.controllers.sessions_manager import *
+from dreamflask.controllers.page_manager import *
 
 def generate_page(sessions_db, session_id):
 	user_info = sessions_db.get_user_by_id(session_id)
-	page_info = user_info.page_manager.get_generate_page_info()
+	page_info = user_info.page_manager.get_generate_page_item()
 	status_msg = page_info.get('status_msg')
 
 	page = base_pages.header_section("Generate")
 	page += "<body>"
-	page += base_pages.navbar_section(session_id)
+	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
 	page += base_pages.banner_section(f'Status: {status_msg}', page_name='Generate Image')
 
 	page += " <form action='/' method='POST'>"
-	page += "	<input type='hidden' name='page_name' value='generate_page'>"
+	page += f"	<input type='hidden' name='page_name' value='{GENERATE}'>"
 	page += f"	<input type='hidden' name='session_id' value='{session_id}'>"
 
 	page += "	<div class='flex-container'>"
@@ -32,7 +33,7 @@ def generate_page(sessions_db, session_id):
 	# Line 1
 	page += "	<div class='flex-container' style='flex-wrap:wrap;gap:8px;'>"
 	page += base_pages.generate_label_input('Steps', 'steps', page_info.get('steps'), 3)
-	page += base_pages.generate_label_input('Samples', 'samples', page_info.get('samples'), 3)
+	page += base_pages.generate_label_input('Samples', 'batch_size', page_info.get('batch_size'))
 	page += base_pages.generate_label_input('Prompt Weight', 'cfg_scale', page_info.get('cfg_scale'), 3)
 	page += f"		<label>Seed&nbsp"
 	page += f"			<input size='12' value='{page_info.get('seed')}' name='seed' id='seed'>"
@@ -62,7 +63,7 @@ def generate_page(sessions_db, session_id):
 	for model in models:
 		crop_model = os.path.basename(model).split('.')[0]
 		selected = "selected" if (model == page_info.get('model', '')) else ""
-		page += f"			<option value='{model}' {selected}>{crop_model}</option>"
+		page += f"			<option value='{model}' {selected}>{model}</option>"
 	page += "			</select>"
 	page += "		</label>"
 
@@ -79,19 +80,18 @@ def generate_page(sessions_db, session_id):
 	page += "		<label>Init Image&nbsp"
 	page += "			<select style='id='init_image' name='init_image'>"
 	page += "				<option value='none'>No Init Image</option>"
-	for file_infos in (user_info.file_manager.get_generated_file_infos() + user_info.file_manager.get_workbench_file_infos()):
-		file_info = file_infos[0]
+	for file_info in (user_info.file_manager.get_generated_file_infos() + user_info.file_manager.get_workbench_file_infos()):
 		selected = "selected" if (file_info.id == page_info.get('init_image', '')) else ""
 		page += f"			<option value='{file_info.id}' {selected}>{os.path.basename(file_info.filename)}</option>"
 	page += "			</select>"
 	page += "		</label>"
 	page += base_pages.generate_label_input('Influence [Less <0.0 - 1.0> More]', 'strength', page_info.get('strength'), 3)
 	page += "	</div>"
-	page += base_pages.buttons_section(['Generate', 'Refresh', 'Reset', 'Upscale', 'Upload',  'Clean Files', 'Themes', 'Montage', 'Playground'])
+	page += base_pages.buttons_section(['Generate', 'Refresh', 'Reset', 'Upscale', 'Upload',  'Clean Files', 'Themes', 'Montage', 'Playground', 'Profile'])
 	page += "  </form>"
 
-	page += base_pages.generated_images_section(user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, cols=int(page_info['cols']))
-	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, cols=int(page_info['cols']))
+	page += base_pages.generated_images_section(user_info.file_manager.get_generated_file_infos(), sessions_db, session_id)
+	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id)
 
 	page += "</div>"
 	page += "</body></html>"

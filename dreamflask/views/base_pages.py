@@ -2,7 +2,6 @@ import os
 
 from dream_utils import convert_bytes
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
-from dreamflask.controllers.image_info import image_info
 
 log = SD_Logger(__name__.split('.')[-1], logger_levels.INFO)
 
@@ -19,7 +18,7 @@ def header_section(page_title, script=''):
 	page += "	</head>"
 	return page
 
-def navbar_section(session_id=None):
+def navbar_section(display_name=None):
 	page = "<div class='diffusion'>"
 	page += "	<div class='flex-container' style='margin-bottom: 0px;align-items: center;font-size: large;'>"
 	page += "		<p style='margin-right: 1%;'>SD</p>"
@@ -27,9 +26,9 @@ def navbar_section(session_id=None):
 	page += "			<a href='/' style='text-decoration: none;color: #555;'>Clear Session</a>"
 	page += "		</div>"
 
-	if (session_id):
+	if display_name:
 		page += "	<div class='flex-container' style='margin-left: auto;'>"
-		page += f"		{session_id}"	
+		page += f"		{display_name}"	
 		page += "	</div>"
 
 	page += "	"
@@ -57,7 +56,7 @@ def checkbox_table_section(section_title, file_infos, session_db, session_id, pr
 	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{section_title}</div>"
 	page += "<div class='gallery'>"
 	for idx, file_obj in enumerate(file_infos):
-		img_info = session_db.get_image_info_by_hash(file_obj[0].id)
+		img_info = session_db.get_image_item_by_hash(file_obj.id)
 		#log.info(f"IDX, FILEINFO: {idx}, {file_info}")
 		selected = 'checked' if img_info.id in selected_list else ''
 		title = img_info.get_title_text(viewer_id=session_id)
@@ -70,11 +69,11 @@ def checkbox_table_section(section_title, file_infos, session_db, session_id, pr
 	page += "</div>"
 	return page
 
-def image_table_section(section_title, file_infos, session_db, session_id, cols=0, limit=0):
+def image_table_section(section_title, file_infos, session_db, session_id, limit=0):
 	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{section_title}</div>"
 	page += "<div class='gallery'>"
 	for idx, file_obj in enumerate(file_infos):
-		img_info = session_db.get_image_info_by_hash(file_obj[0].id)
+		img_info = session_db.get_image_item_by_hash(file_obj.id)
 		#log.info(f"IDX, FILEINFO: {idx}, {file_info}")
 		title = img_info.get_title_text(viewer_id=session_id)
 		page += f"	<a class='gallery-img content' target='_output' title='{title}' href='/share/{img_info.id}'>"
@@ -84,6 +83,14 @@ def image_table_section(section_title, file_infos, session_db, session_id, cols=
 		if (limit > 0 and idx > limit):
 			break
 	page += "</div>"
+	return page
+
+def image_selection_buttons(buttons_info):
+	page = "		<div class='flex-container' style='gap: 2px;'>"
+	for k,v in buttons_info.items():
+		page += f"			<div class='chip' onClick='selectAllImg(\"{v}\")'>{k}</div>"
+	page += "			<div class='chip' onClick='clearCheckboxes()'>Clear Selections</div>"
+	page += "		</div>"
 	return page
 
 def buttons_section(button_names):
