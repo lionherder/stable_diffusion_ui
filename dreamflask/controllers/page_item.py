@@ -17,9 +17,11 @@ THEMES = 'themes_page'
 MONTAGE = 'montage_page'
 PLAYGROUND = 'playground_page'
 PROFILE = 'profile_page'
-EDITIMAGE = 'image_page'
+IMAGES = 'images_page'
+EDITIMAGE = 'edit_image_page'
+NAVBAR = 'nav_bar'
 
-PAGE_LIST = [ LANDING, GENERATE, UPSCALE, UPLOAD, CLEANUP, THEMES, MONTAGE, PLAYGROUND, PROFILE, EDITIMAGE ]
+PAGE_LIST = [ LANDING, GENERATE, UPSCALE, UPLOAD, CLEANUP, THEMES, MONTAGE, PLAYGROUND, PROFILE, IMAGES, EDITIMAGE ]
 
 class page_item():
 
@@ -48,7 +50,7 @@ class page_item():
 			return None
 
 		new_page_info = {}
-		self.info(f"Updating page info for: '{self._page_name}' -> [{page_info}]")
+		#self.info(f"Updating page info for: '{self._page_name}' -> [{page_info}]")
 		if self.page_name == LANDING:
 			new_page_info = self.update_landing_page_state(page_info, with_form)
 		elif self.page_name == GENERATE:
@@ -67,10 +69,12 @@ class page_item():
 			new_page_info = self.update_playground_page_state(page_info, with_form)
 		elif self.page_name == PROFILE:
 			new_page_info = self.update_profile_page_state(page_info, with_form)
-		elif self.page_name == EDITIMAGE:
+		elif self.page_name == IMAGES:
 			new_page_info = self.update_image_page_state(page_info, with_form)
+		elif self.page_name == EDITIMAGE:
+			new_page_info = self.update_edit_image_page_state(page_info, with_form)
 		else:
-			self.info(f"error: unhandled page name {self.page_name}")
+			self.info(f"***** ERROR: unhandled page name {self.page_name}")
 			new_page_info = None
 			return None
 
@@ -237,14 +241,31 @@ class page_item():
 
 	def update_image_page_state(self, page_state, with_form=False):
 		return {
-			'page_name' : EDITIMAGE,
+			'page_name' : IMAGES,
 			'session_id' : page_state.get('session_id', ''),
+			'image_id' : page_state.get('image_id', '-1'),
 			'button' : page_state.get('button', ''),
 			'status_msg' : page_state.get('status_msg', 'Okie Dokie!'),
 			'title' : page_state.get('title', ''),
 			'show_owner' : page_state.get('show_owner', 'False'),
 			'show_meta'  : page_state.get('show_meta', 'False'),
 		}
+
+	def update_edit_image_page_state(self, page_state, with_form=False):
+		return {
+			'page_name' : EDITIMAGE,
+			'session_id' : page_state.get('session_id', ''),
+			'image_id' : page_state.get('image_id', '-1'),
+			'button' : page_state.get('button', ''),
+			'status_msg' : page_state.get('status_msg', 'Okie Dokie!'),
+			'title' : page_state.get('title', ''),
+			'show_owner' : page_state.get('show_owner', 'False'),
+			'show_meta'  : page_state.get('show_meta', 'False'),
+			'meta' : page_state.get('meta', '')
+		}
+
+	def __str__(self):
+		return 'page_item: {' + ','.join([ f" '{k}' : '{v}'" for k,v in self._page_state.items() ]) + ' }'
 
 	def get(self, key, default=None):
 		if not default:

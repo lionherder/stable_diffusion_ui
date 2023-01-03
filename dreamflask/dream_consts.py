@@ -10,6 +10,8 @@ FAVICON = "dreamflask/icons/favicon.ico"
 
 MODELS_FOLDER = 'models/ldm/stable-diffusion/'
 
+THUMBNAIL_SIZE = (128, 128)
+
 DEV_DB = "sessions_dev.db"
 PROD_DB = "sessions_prod.db"
 

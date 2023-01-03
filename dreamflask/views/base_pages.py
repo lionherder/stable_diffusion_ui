@@ -2,6 +2,8 @@ import os
 
 from dream_utils import convert_bytes
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
+from dreamflask.controllers.page_item import *
+from dreamflask.dream_consts import *
 
 log = SD_Logger(__name__.split('.')[-1], logger_levels.INFO)
 
@@ -18,7 +20,7 @@ def header_section(page_title, script=''):
 	page += "	</head>"
 	return page
 
-def navbar_section(display_name=None):
+def navbar_section(display_name, user_id):
 	page = "<div class='diffusion'>"
 	page += "	<div class='flex-container' style='margin-bottom: 0px;align-items: center;font-size: large;'>"
 	page += "		<p style='margin-right: 1%;'>SD</p>"
@@ -28,7 +30,11 @@ def navbar_section(display_name=None):
 
 	if display_name:
 		page += "	<div class='flex-container' style='margin-left: auto;'>"
-		page += f"		{display_name}"	
+		page += f"		<form action='/' method='POST' id='{NAVBAR}'>"
+		page += f"			<input type='hidden' name='page_name' value='{NAVBAR}'>"
+		page += f"			<input type='hidden' name='session_id' value='{user_id}'>"
+		page += f"				<a onClick=\"document.getElementById('{NAVBAR}').submit()\" style='cursor:pointer;text-decoration: none;color: #555;'>{display_name}</a>"
+		page += "		</form>"
 		page += "	</div>"
 
 	page += "	"
@@ -60,10 +66,39 @@ def checkbox_table_section(section_title, file_infos, session_db, session_id, pr
 		#log.info(f"IDX, FILEINFO: {idx}, {file_info}")
 		selected = 'checked' if img_info.id in selected_list else ''
 		title = img_info.get_title_text(viewer_id=session_id)
-		page += "	<div class='gallery-img content' style='flex-shrink: 0;'>"
-		page += f"		<img title='{title}' onclick='setCheckboxValue(\"{prefix}_{idx}\", true)' src='/share/{img_info.thumbnail}' width='128' height='128'></img>"
+		page += "	<div class='gallery-img content'>"
+		page += f"		<img title='{title}' onclick='setCheckboxValue(\"{prefix}_{idx}\", true)' src='/share/{img_info.thumbnail}' width={THUMBNAIL_SIZE[0]} height={THUMBNAIL_SIZE[1]}></img>"
 		page += f"		<input style='margin-bottom: 10%;' type='checkbox' {selected} id='{prefix}_{idx}' name='files' value='{img_info.id}'/>"
 		page += "	</div>"
+		if (limit > 0 and idx > limit):
+			break
+	page += "</div>"
+	return page
+
+def editimage_table_section(section_title, file_infos, session_db, session_id, prefix='', limit=0):
+	page = f"<div class='gallery-title collapsible active'>-&nbsp&nbsp{section_title}</div>"
+	page += "<div class='gallery'>"
+	for idx, file_info in enumerate(file_infos):
+		img_info = session_db.get_image_item_by_hash(file_info.id)
+		#log.info(f"  - IDX, FILEINFO: {idx}, {img_info.show_owner}")
+		selected_o = 'checked' if img_info.show_owner else ''
+		selected_i = 'checked' if img_info.show_meta else ''
+		#log.info(f"  - Show owner: [{selected_o}]  Show info: [{selected_i}]")
+		title = img_info.get_title_text(viewer_id=session_id)
+		page += "	<div class='gallery-img content'>"
+		page += f"<img style='cursor:auto;' title='{title}' src='/share/{img_info.thumbnail}' width={THUMBNAIL_SIZE[0]} height={THUMBNAIL_SIZE[1]}></img>"
+		page += f"		<div class='flex-container'>"
+		page += f"			<input type='checkbox' {selected_o} id='o_{prefix}_{idx}' name='files' value='o_{img_info.id}'>O</input>"
+		page += f"			&nbsp&nbsp"
+		page += f"			<input type='checkbox' {selected_i} id='i_{prefix}_{idx}' name='files' value='i_{img_info.id}'>I</input>"
+		page += f"			&nbsp&nbsp"
+		page += f"""			<a
+onClick='document.getElementById("image_id").value="{img_info.id}";
+document.getElementById("image_form").submit();'
+style='cursor:pointer;text-decoration: none;color: #555;'>edit</a>
+"""
+		page += f"		</div>"
+		page += f"	</div>"
 		if (limit > 0 and idx > limit):
 			break
 	page += "</div>"
@@ -77,7 +112,7 @@ def image_table_section(section_title, file_infos, session_db, session_id, limit
 		#log.info(f"IDX, FILEINFO: {idx}, {file_info}")
 		title = img_info.get_title_text(viewer_id=session_id)
 		page += f"	<a class='gallery-img content' target='_output' title='{title}' href='/share/{img_info.id}'>"
-		page += f"		<img src='/share/{img_info.thumbnail}' width='128' height='128'>"
+		page += f"		<img src='/share/{img_info.thumbnail}' width={THUMBNAIL_SIZE[0]} height={THUMBNAIL_SIZE[1]}>"
 		page += "	</a>"
 		#page += "</div>"
 		if (limit > 0 and idx > limit):
@@ -106,6 +141,6 @@ def generated_images_section(file_infos, session_db, session_id, cols=0):
 def workbench_images_section(file_infos, session_db, session_id, cols=0):
 	return image_table_section('Workbench Images', file_infos, session_db, session_id, cols)
 
-def playground_image_section(file_infos, session_db, session_id, cols=0):
+def playground_images_section(file_infos, session_db, session_id, cols=0):
 	return image_table_section('Playground Images', file_infos, session_db, session_id, cols)
 

@@ -13,7 +13,7 @@ def themes_page(session_info, session_id):
 	print(f'Themes: {themes}')
 	page = base_pages.header_section("Prompt Themes")
 	page += "	<body>"
-	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
+	page += base_pages.navbar_section(f"{user_info.display_name}", session_id)
 
 	page += "	<form action='/' method='POST'>"
 	page += "	<input type='hidden' name='page_name' value='themes_page'>"

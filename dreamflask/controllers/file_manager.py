@@ -3,9 +3,10 @@ import os
 from PIL import Image
 from sqlalchemy.orm import Session
 from sqlalchemy import *
-from dream_consts import GENERATED_FOLDER, PLAYGROUND_FOLDER, THUMBNAILS_FOLDER, WORKBENCH_FOLDER
+from dreamflask.dream_consts import *
 from dreamflask.models.sd_model import *
-from dreamflask.controllers.image_item import PLAYGROUND, THUMBNAIL, WORKBENCH, GENERATED, image_item
+from dreamflask.controllers.image_item import *
+
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 
 class file_manager():
@@ -83,7 +84,7 @@ class file_manager():
 							filter(FileInfo.id==img_info.id).\
 							update({'thumbnail' : ''})
 						session.commit()
-
+			self.refresh()
 			"""
 			Area to do some simple migration stuff
 			"""
@@ -110,6 +111,7 @@ class file_manager():
 			#self.info(f"  - filename: {img_info.filename} {img_info.has_thumbnail()}")
 			if img_info and not img_info.committed:
 					img_info.insert_file_info()
+		self.refresh()
 
 			#self.info(f"  - Type: [{img_info.filetype}] Size: [{img_info.size} b]")
 
@@ -143,7 +145,7 @@ class file_manager():
 			os.makedirs(thumbnails_session, exist_ok=True)
 			self.info("  - creating thumbnail...")
 			img = Image.open(img_info.filename)
-			img.thumbnail((128, 128))
+			img.thumbnail(THUMBNAIL_SIZE)
 			img.save(th_filename)
 			img.close()
 			th_img_info = image_item.from_filename(th_filename, self._user_id, self._engine)
@@ -160,9 +162,9 @@ class file_manager():
 	def clean_thumbnail_dir(self):
 		self.info("Cleaning up thumbnails dir")
 		self.info("  - wiping thumbnail db entries")
-		th_file_info_resp = self.get_thumbnail_file_infos()
-		if (th_file_info_resp and len(th_file_info_resp) > 0):
-			for th_file_info in th_file_info_resp:
+		th_file_infos = self.get_thumbnail_file_infos()
+		if (th_file_infos and len(th_file_infos) > 0):
+			for th_file_info in th_file_infos:
 				#self.info(f"    - [{th_file_info.id}]")
 				self.remove_file(th_file_info.id)
 
@@ -174,6 +176,33 @@ class file_manager():
 
 		# This will straighten everything out
 		self.update_fileinfos()
+
+
+	def update_permissions(self, update_items):
+		self.info(f"Updating image permissions for [{self._user_id}]")
+		self.info(f"  - Items: {update_items}")
+		self.info("  - checking DB entries")
+
+		with Session(self._engine) as session:
+			for file_hash, file_info in self._file_infos_by_hash.items():
+				#self.info(f"  - [1] file_info: {file_info.show_owner, file_info.show_meta}")
+				if (f"o_{file_hash}" in update_items):
+					file_info.show_owner = 'True'
+				else:
+					file_info.show_owner = 'False'
+
+				if (f"i_{file_hash}" in update_items):
+					file_info.show_meta = 'True'
+				else:
+					file_info.show_meta = 'False'
+				#self.info(f"  - [2] file_info: {file_info.show_owner, file_info.show_meta}")
+				#self.info(f"  - updating [{file_hash}]")
+
+				session.query(FileInfo).\
+					filter(FileInfo.id==file_hash).\
+					update(file_info.as_dict())
+			session.commit()
+		self.refresh()
 
 	def has_filename(self, filename):
 		file_info = self.get_file_info_by_filename(filename)
@@ -209,6 +238,9 @@ class file_manager():
 	def get_all_file_info_filenames(self):
 		return self._file_infos_by_filename.keys()
 
+	def get_all_file_info_hashes(self):
+		return self._file_infos_by_hash.keys()
+
 	def get_all_file_infos_except_thumbnails(self):
 		return [ file_info for file_info in self.get_all_file_infos() if file_info.filetype != THUMBNAIL ]
 
@@ -229,6 +261,15 @@ class file_manager():
 
 	def get_file_infos_by_type(self, filetype):
 		return self._file_infos_by_type.get(filetype, [])
+
+	## Returns file_items
+	def get_file_item_by_hash(self, file_hash):
+		return image_item.from_hash(file_hash, self._user_id, self._engine)
+
+	## Returns file_items
+	def get_file_item_by_filename(self, filename):
+		return image_item.from_filename(filename, self._user_id, self._engine)
+	## 
 
 	def get_generated_file_infos(self):
 		return self.get_file_infos_by_type(GENERATED)
@@ -252,7 +293,7 @@ class file_manager():
 		else:
 			new_img_info.insert_file_info()
 
-		# Refres from the DB
+		# Refresh from the DB
 		self.refresh()
 
 		return new_img_info

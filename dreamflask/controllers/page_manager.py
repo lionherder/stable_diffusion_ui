@@ -25,7 +25,6 @@ class page_manager():
 	def update_page_item(self, page_name, page_info, with_form=False):
 		if (page_info == None or not page_name or len(page_name) < 1):
 			return
-		self.info(f"Updating page info for '{page_name}' -> {page_info}")
 		page_item = self.get_page_item(page_name)
 		if not page_item:
 			return
@@ -63,4 +62,7 @@ class page_manager():
 		return self.get_page_item(PROFILE)
 
 	def get_image_page_item(self):
+		return self.get_page_item(IMAGES)
+
+	def get_edit_image_page_item(self):
 		return self.get_page_item(EDITIMAGE)

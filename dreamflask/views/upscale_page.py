@@ -9,7 +9,7 @@ def upscale_page(session_db, session_id):
 
 	page = base_pages.header_section("Upscale")
 	page += "	<body>"
-	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
+	page += base_pages.navbar_section(f"{user_info.display_name}", session_id)
 	page += base_pages.banner_section(f'Status: {status_msg}', page_name='Upscale Image')
 
 	page += f"	<form method='POST' action='/' enctype='multipart/form-data'>"

@@ -9,7 +9,7 @@ def landing_page(session_db):
 
 	page = base_pages.header_section("Create Session")
 	page += "	<body>"
-	page += base_pages.navbar_section()
+	page += base_pages.navbar_section("", "")
 	page += "<form action='/' method='POST'>"
 	page += f"	<input type='hidden' name='page_name' value='{LANDING}'/>"
 	page += "	<div style='display: flex;align-items: center;padding: 1%;'>"

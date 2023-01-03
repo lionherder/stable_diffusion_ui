@@ -1,8 +1,5 @@
-import glob
 import requests
-import os
-from dream_consts import GENERATED_FOLDER, PLAYGROUND_FOLDER, PROGRESS_API_URL, THUMBNAILS_FOLDER, WORKBENCH_FOLDER, MODELS_FOLDER
-from dream_consts import OPTIONS_API_URL, UPSCALE_API_URL, TXT2IMG_API_URL, IMG2IMG_API_URL
+from dreamflask.dream_consts import *
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 
 log = SD_Logger("FlaskServer", logger_levels.INFO)

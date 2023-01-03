@@ -13,7 +13,7 @@ def generate_page(sessions_db, session_id):
 
 	page = base_pages.header_section("Generate")
 	page += "<body>"
-	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
+	page += base_pages.navbar_section(f"{user_info.display_name}", session_id)
 	page += base_pages.banner_section(f'Status: {status_msg}', page_name='Generate Image')
 
 	page += " <form action='/' method='POST'>"
@@ -28,6 +28,10 @@ def generate_page(sessions_db, session_id):
 	page += "	<div class='flex-container'>"
 	page += f"		<textarea onInput=adjustTextAreaHeight() onClick=adjustTextAreaHeight() onkeydown='if (event.keyCode == 13) {{ this.form.submit(); return false; }}' placeholder='Negative Prompt' rows=2 name='neg_prompt' id='neg_prompt'>{escape(page_info.get('neg_prompt', ''))}</textarea>"
 	page += "		<a class='button' onClick='clearNegPrompt()'>X</a>"
+	page += "	</div>"
+
+	page += "	<div class='button-container'>"
+	page += "		<button class='button' style='width:100%;' name='Generate' value='Generate'>Generate</a>"
 	page += "	</div>"
 
 	# Line 1
@@ -87,7 +91,7 @@ def generate_page(sessions_db, session_id):
 	page += "		</label>"
 	page += base_pages.generate_label_input('Influence [Less <0.0 - 1.0> More]', 'strength', page_info.get('strength'), 3)
 	page += "	</div>"
-	page += base_pages.buttons_section(['Generate', 'Refresh', 'Reset', 'Upscale', 'Upload',  'Clean Files', 'Themes', 'Montage', 'Playground', 'Profile'])
+	page += base_pages.buttons_section(['Generate', 'Refresh', 'Reset', 'Upscale', 'Upload',  'Clean Files', 'Themes', 'Montage', 'Playground', 'Image Info'])
 	page += "  </form>"
 
 	page += base_pages.generated_images_section(user_info.file_manager.get_generated_file_infos(), sessions_db, session_id)

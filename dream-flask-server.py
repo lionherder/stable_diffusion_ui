@@ -45,6 +45,7 @@ from dreamflask.views.playground_page import playground_page
 from dreamflask.views.profile_page import profile_page
 from dreamflask.views.image_page import image_page
 from dreamflask.views.view_page import view_page
+from dreamflask.views.edit_image_page import edit_image_page
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 ** 8
@@ -75,11 +76,13 @@ def index():
 
 	user_obj = sessions_db.get_user_by_id(session_id, create=True)
 	page_name = request.form.get('page_name', '')
-	log.info(f"request.form: {request.form}")
+	page_name = page_name if page_name != NAVBAR else PROFILE
+
 	if user_obj:
 		user_obj.page_manager.update_page_item(page_name, request.form, with_form=True)
 
-	log.info(f"Dispatching user '{session_id}' -> {page_name}")
+	log.info(f"Dispatching user '{session_id}' -> '{page_name}'")
+	#log.info(f"request.form: {request.form}")
 	if (page_name == LANDING):
 		return generate_page(sessions_db, session_id)
 	elif (page_name == GENERATE):
@@ -96,37 +99,93 @@ def index():
 		return MakeMontage(session_id)
 	elif (page_name == PLAYGROUND):
 		return Playground(session_id)
-	elif (page_name == PROFILE):
+	elif (page_name == NAVBAR or page_name == PROFILE):
 		return ProfilePage(session_id)
-	elif (page_name == EDITIMAGE):
+	elif (page_name == IMAGES):
 		return ImagePage(session_id)
+	elif (page_name == EDITIMAGE):
+		return EditImagePage(session_id)
 
 	return landing_page(sessions_db)
 
-# TODO
-def ProfilePage(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
-	page_item = user_info.page_manager.get_profile_page_item()
-	log.info(f"page_item: {page_item}")
+def EditImagePage(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
+	page_item = user_info.page_manager.get_edit_image_page_item()
 	button = page_item.get('button')
-	status_msg = ""
+	image_id = page_item.get('image_id')
+
+	# Shouldn't be here without an image hash
+	if (not image_id):
+		return image_page(sessions_db, user_id)
 
 	if (button == 'Update'):
-		pass
+		img_item = user_info.file_manager.get_file_item_by_hash(image_id)
+		if (not img_item):
+			return edit_image_page(sessions_db, user_id, image_id)
+		# Update the image fields
+		img_item.update_file_info(img_info= {
+			'title' : page_item.get('title','')[:128],
+			'show_owner' : page_item.get('show_owner'),
+			'show_meta' :  page_item.get('show_meta'),
+			'meta' : page_item.get('meta', '')[:1024] } )
+		page_item.set('status_msg', "Image info updated")
+		user_info.refresh()
+
 	elif (button == 'Return'):
-		return generate_page(sessions_db, session_id)
+		return image_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
-		pass
+		user_info.refresh()
+		page_item.refresh()
 
-	return profile_page(sessions_db, session_id)
+	return edit_image_page(sessions_db, user_id, image_id)
 
-# TODO
-def ImagePage(self):
-	pass
+def ImagePage(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
+	page_item = user_info.page_manager.get_image_page_item()
+	image_id = page_item.get('image_id')
+	button = page_item.get('button')
+	log.info(f"page_item: {page_item}")
 
+	if (image_id and image_id != '-1'):
+		return edit_image_page(sessions_db, user_id, image_id)
+	
+	if (button == 'Update'):
+		update_files = request.form.getlist('files')
+		user_info.file_manager.update_permissions(update_files)
+		page_item.set('status_msg', f"{len(update_files)} file(s) updated")
+	elif (button == 'Return'):
+		return generate_page(sessions_db, user_id)
+	elif (button == 'Refresh'):
+		user_info.refresh()
+		page_item.refresh()
+	elif (button == 'Playground'):
+		return playground_page(sessions_db, user_id)
 
-def Playground(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
+	return image_page(sessions_db, user_id)
+
+def ProfilePage(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
+	page_item = user_info.page_manager.get_profile_page_item()
+	button = page_item.get('button')
+
+	if (button == 'Update'):
+		user_info.update_user_info( {
+			'user_id' : user_id,
+			'display_name' : request.form['display_name'],
+			'bio' : request.form['bio']
+		})
+		page_item.set('status_msg', "User Profile Updated")
+
+	elif (button == 'Return'):
+		return generate_page(sessions_db, user_id)
+	elif (button == 'Refresh'):
+		user_info.refresh()
+		page_item.refresh()
+
+	return profile_page(sessions_db, user_id)
+
+def Playground(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_playground_page_item()
 	button = page_item.get('button')
 	files = page_item.get('files', [])
@@ -139,11 +198,11 @@ def Playground(session_id):
 		for file_hash in files:
 			filename = user_info.file_manager.get_filename_by_hash(file_hash)
 			src_filename = os.path.basename(filename)
-			dest_filename = f"{PLAYGROUND_FOLDER}/{session_id}/{src_filename}"
+			dest_filename = f"{PLAYGROUND_FOLDER}/{user_id}/{src_filename}"
 			try:
 				# TODO: Add new file to playground!!!
 				status_msg += f"Adding to Playground: {src_filename}<br>"
-				os.makedirs(f"{PLAYGROUND_FOLDER}/{session_id}", exist_ok=True)
+				os.makedirs(f"{PLAYGROUND_FOLDER}/{user_id}", exist_ok=True)
 				shutil.copyfile(filename, dest_filename)
 				img_info = user_info.file_manager.add_file(dest_filename)
 				user_info.file_manager.generate_thumbnail(img_info)
@@ -153,19 +212,21 @@ def Playground(session_id):
 				status_msg += f"Error: {filename} : {e}"
 			page_item.set('status_msg', status_msg)
 			page_item.set('files', [])
-	elif (button== 'Delete'):
+	elif (button== 'Remove'):
 		del_files = request.form.getlist('files')
 		for filename in del_files:
 			user_info.file_manager.remove_file(filename)
 		page_item.set('status_msg', f"{len(del_files)} file(s) removed")
 	elif (button == 'Return'):
-		return generate_page(sessions_db, session_id)
+		return generate_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
 		page_item.set('files', [])
 		page_item.update_page_item(page_item)
 		user_info.file_manager.refresh()
+	elif (button == 'Image Info'):
+		return image_page(sessions_db, user_id)
 
-	return playground_page(sessions_db, session_id)
+	return playground_page(sessions_db, user_id)
 
 def CreateThemes(session_id):
 	user_info = sessions_db.get_user_by_id(session_id)
@@ -185,9 +246,6 @@ def CreateThemes(session_id):
 	elif (button == 'Return'):
 		page_item.set('themes', themes)
 		return generate_page(sessions_db, session_id)
-
-	## Proud of this one -- flatten a list of lists from a dictionary
-	#prompt = ', '.join([ item for sublist in [ request.form.getlist(key) for key in sorted(PROMPT_EXTRAS.keys()) ]  for item in sublist ])
 
 	return themes_page(sessions_db, session_id)
 
@@ -234,13 +292,11 @@ def MakeMontage(session_id):
 				img.save(save_filename, pnginfo=metadata)
 				img.close()
 
-				img_info = user_info.file_manager.add_file(save_filename)
-				user_info.file_manager.generate_thumbnail(img_info)
-
-				img_info = image_item.from_filename(save_filename, session_id, sessions_db._engine)
+				img_info = image_item.from_filename(save_filename, session_id, sessions_db.engine)
 				img_info.insert_file_info()
 				user_info.file_manager.generate_thumbnail(img_info)
-				log.info(f"Montage: {img_info}")
+				user_info.file_manager.refresh()
+				#log.info(f"Montage: {img_info}")
 				page_item.set('status_msg', f"Montage created.<br><br><a href='/share/{img_info.hash}' title='{img_info.get_title_text(session_id)}' target='_'><img class='img-thumbnail' src='/share/{img_info.thumbnail}' width='128' height='128'></a>")
 			except Exception as e:
 				log.info(traceback.print_exc())
@@ -258,7 +314,7 @@ def UpscaleFile(session_id):
 		if (image_hash == 'none'):
 			page_item.set('status_msg', 'Select an image to upscale')
 		else:
-			img_info = image_item.from_hash(image_hash, session_id, sessions_db._engine)
+			img_info = image_item.from_hash(image_hash, session_id, sessions_db.engine)
 			save_filename = f'{WORKBENCH_FOLDER}/{session_id}/{int(time.time())}-upscaled-{os.path.basename(img_info.filename)}'
 			upscaled_resp = generate_upscaling(page_item, encode_pil_to_base64(Image.open(img_info.filename)))
 			upscaled_image = decode_base64_to_image(f"data:image/png;base64,{upscaled_resp['image']}")
@@ -520,9 +576,8 @@ def LoadAPIConfig():
 with app.app_context():
 	log = SD_Logger("FlaskServer", logger_levels.INFO)
 
-	log.info(f"Initializing... {sys.argv[1]}")
+	log.info(f"Initializing... [{sys.argv[1]} mode]")
 	sessions_db = sessions_manager(PROD_DB if sys.argv[1] == 'release' else DEV_DB)
-	sessions_db.init()
 	LoadAPIConfig()
 	log.info("Initialization done!")
 

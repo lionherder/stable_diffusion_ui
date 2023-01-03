@@ -13,7 +13,7 @@ def montage_page(sessions_db, session_id):
 
 	page = base_pages.header_section("Montage")
 	page += "<body>"
-	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
+	page += base_pages.navbar_section(f"{user_info.display_name}", session_id)
 	page += base_pages.banner_section(f'Status: {status_msg}', "Gonna Make a Montage")
 
 	page += "	<form action='/' method='POST'>"

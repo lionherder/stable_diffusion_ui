@@ -6,7 +6,7 @@ from dreamflask.dream_utils import convert_bytes
 def view_page(img_info):
 	page = base_pages.header_section(f"{img_info.filename}")
 	page += "<body>"
-	page += base_pages.navbar_section("")
+	page += base_pages.navbar_section("", "")
 	page += "</body></html>"
 
 	title = img_info.get_title_text()

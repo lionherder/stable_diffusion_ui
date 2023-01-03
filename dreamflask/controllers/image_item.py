@@ -2,7 +2,7 @@ import os
 
 from PIL import Image
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, update
 from dreamflask.dream_utils import convert_bytes
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 from dreamflask.models.sd_model import *
@@ -21,6 +21,7 @@ class image_item():
 		self._engine = engine
 		self._filename = image_info.get('filename', '')
 		self._hash = image_info.get('hash', '')
+		self._owner_info = None
 
 		self._logger = SD_Logger(__name__.split(".")[-1], logger_levels.INFO)
 		self.info = self._logger.info
@@ -66,6 +67,11 @@ class image_item():
 				file_info_resp = session.execute(select(FileInfo).where(FileInfo.filename==filename)).fetchone()
 				if (file_info_resp and len(file_info_resp) > 0):
 					self._image_info = file_info_resp[0].as_dict()
+					self._owner_info = file_info_resp[0].owner
+					if (self._owner_info):
+						self._image_info['display_name'] = self.owner_info.display_name
+					else:
+						self._image_info['display_name'] = "Not Sure"
 					self._committed = True # It has already been committed
 					#self.info(f"  - image hash: {self._image_info.get('id')}")
 				else:
@@ -84,17 +90,20 @@ class image_item():
 		return { k : self._image_info[k] for k in new_file_fields }
 
 	# Push info to disk
-	def update_file_info(self):
+	def update_file_info(self, img_info={}):
 		self.info(f"  - updating file: {self.filename}")
 
-		new_file_args = self.get_file_info_fields()
+		update_file_args = self.get_file_info_fields()
+		update_file_args.update(img_info)
+
 		with Session(self._engine) as session:
-			#self.info(f"new_file_args: {self._image_info}")
+			self.info(f"  - update_file_args: {self._image_info}")
 			session.query(FileInfo).\
 				filter(FileInfo.id==self.id).\
-				update(new_file_args)
+				update(update_file_args)
 			session.commit()
 			self._committed = True
+		self.refresh_info()
 
 	def insert_file_info(self):
 		self.info(f"  - inserting file: {self.filename}")
@@ -123,7 +132,13 @@ class image_item():
 			with Session(self._engine) as session:
 				file_info_resp = session.execute(select(FileInfo).where(FileInfo.filename==self._filename)).fetchone()
 				if (file_info_resp and len(file_info_resp) > 0):
+					#self.info(f"file_info_resp: {file_info_resp[0].as_dict()}")
 					img_info = file_info_resp[0].as_dict()
+					self._owner_info = file_info_resp[0].owner
+					if (self._owner_info):
+						self._image_info['display_name'] = self._owner_info.as_dict()
+					else:
+						self._image_info['display_name'] = "Edit Profile"
 					self._committed = True # Setting it anyways
 		else:
 			# Gather up some file stats
@@ -186,27 +201,42 @@ class image_item():
 	def set_thumbnail(self, thumbnail):
 		self._image_info['thumbnail'] = thumbnail
 
+	def as_file_info_fields(self):
+		return self.get_file_info_fields()
+
+	def get_title_text(self, viewer_id=None):
+		title = ""
+
+		if (self.title and len(self.title) > 0):
+			title += f'''Title: {self.title}
+'''
+
+		if (self.show_owner) or (self.owner_id == viewer_id):
+			title += f'''Owner: {self.display_name}
+'''
+
+		if (self.show_meta) or (self.owner_id == viewer_id):
+			title += f'''{self.metadata}
+'''
+		title +=f'Size: {convert_bytes(self.size)} [ {self.width}x{self.height} ]'
+		return title
+
 	def __str__(self):
 		return "ImageInfo: {" + ''.join([ f" '{k}' : '{v}'," for k,v in self._image_info.items() ])[:-1] + "}"
 
 	def as_dict(self):
 		return self._image_info
 
-	def as_file_info_fields(self):
-		return self.get_file_info_fields()
+	def set(self, k, v):
+		self.info(f"  - setting [{self.hash}] '{k}' = '{v}'")
+		self._image_info[k] = v
+		return self._image_info[k]
 
-	def get_title_text(self, viewer_id=None):
-		title = f'Title: {os.path.basename(self.filename)} [{convert_bytes(self.size)}]'
-
-		if (self.show_owner) or (self.owner_id == viewer_id):
-			title += f'''
-Owner: {self.owner_id}'''
-
-		if (self.show_meta) or (self.owner_id == viewer_id):
-			title += f'''
-Info: {self.metadata}
-'''
-		return title
+	def get(self, k, d=None):
+		if (d == None):
+			return self._image_info[k]
+		else:
+			return self._image_info.get(k, d)
 
 	@property
 	def ctime(self):
@@ -250,7 +280,7 @@ Info: {self.metadata}
 
 	@property
 	def owner_id(self):
-		return self._image_info.get('owner_id', '-1')
+		return self._owner_id
 
 	@property
 	def basename(self):
@@ -267,12 +297,12 @@ Info: {self.metadata}
 	@property
 	def show_owner(self):
 		#self.info(f"show_owner: {self._image_info['show_owner'] == 'True'}")
-		return bool(self._image_info.get('show_owner', 'False')) == 'True'
+		return self._image_info.get('show_owner', 'False') == 'True'
 
 	@property
 	def show_meta(self):
 		#self.info(f"show_meta: {self._image_info.get('show_meta') == 'True'}")
-		return bool(self._image_info.get('show_meta', 'False')) == 'True'
+		return self._image_info.get('show_meta', 'False') == 'True'
 
 	@property
 	def committed(self):
@@ -283,5 +313,13 @@ Info: {self.metadata}
 		return self._filename
 
 	@property
+	def display_name(self):
+		return self._image_info.get('display_name', '')
+
+	@property
 	def image_info(self):
 		return self._image_info
+
+	@property
+	def owner_info(self):
+		return self._owner_info

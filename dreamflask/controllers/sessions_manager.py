@@ -7,7 +7,7 @@ from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 from dreamflask.models.sd_model import *
 from dreamflask.controllers.image_item import image_item
 from dreamflask.controllers.user_manager import user_manager
-from dream_consts import GENERATED_FOLDER
+from dreamflask.dream_consts import GENERATED_FOLDER
 
 class sessions_manager():
 
@@ -171,7 +171,9 @@ class sessions_manager():
 			pg_images.extend(user_info.file_manager.get_playground_file_infos())
 		return pg_images
 
-
+	@property
+	def engine(self):
+		return self._engine
 
 
 

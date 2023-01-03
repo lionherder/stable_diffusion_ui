@@ -12,7 +12,7 @@ def cleanup_page(sessions_db, session_id):
 
 	page = base_pages.header_section("Clean Up")
 	page += "<body>"
-	page += base_pages.navbar_section(f"{user_info.display_name} / {user_info.user_id}")
+	page += base_pages.navbar_section(f"{user_info.display_name}", session_id)
 	page += base_pages.banner_section(f'Status: {status_msg}', "Clean Up Images")
 
 	page += "	<form action='/' method='POST' enctype='multipart/form-data'>"
