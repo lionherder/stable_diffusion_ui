@@ -29,3 +29,19 @@ V1.1:
   * Next: Bio Page -- Display name and bio, stats
   * Next: Edit picture permissions page
   
+V1.2:
+  * Update profile page
+    * Edit bio and display name
+    * Use a display name to keep the user id off the page header.  Was a little secuity concern when screen sharing.
+  * Edit images and edit image properties page
+    * The info that is displayed on image hover by other users can be controlled
+    * Title - If present, will always be displayed with the image.  Leave blank to disable.
+    * Show Owner - Shows the owner name of a file.  Your display name, not your user id.
+    * Show Info - Shows meta data on the file, things like params for your image generation.
+  * Page caching for speed instead of direct DB access.
+  * Controllers
+    * Created page, user and image item controller classes
+    * Create model managers/controllers
+  * Lots of clean up and consistency updates
+  * Small DB migration
+  * Added logging
