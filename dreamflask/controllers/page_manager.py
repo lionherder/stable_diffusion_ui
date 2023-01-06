@@ -1,6 +1,8 @@
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 from dreamflask.controllers.page_item import *
 
+from sqlalchemy import delete
+
 class page_manager():
 
 	def __init__(self, user_id, engine):
@@ -16,21 +18,57 @@ class page_manager():
 
 	def init(self):
 		for page_name in PAGE_LIST:
-			self.info(f"Init: {page_name}")
-			self._pages[page_name] = self.add_page(page_name)
+			self.add_page(page_name)
 
 	def add_page(self, page_name):
-		return page_item(self._user_id, page_name, self._engine)
+		if (page_name in self._pages):
+			return
+		self._pages[page_name] = page_item(self._user_id, page_name, self._engine)
 
-	def update_page_item(self, page_name, page_info, with_form=False):
+	def remove_page(self, page_name):
+		with Session(self._engine) as session:
+			session.execute(delete(PageInfo).\
+				where(PageInfo.owner_id == self._user_id).\
+				where(PageInfo.page_name == page_name))
+			session.commit()
+		del(self._pages[page_name])
+
+	# Update state of page_item.  No db write
+	def update_page_state(self, page_name, page_info, with_form=False, commit=False):
 		if (page_info == None or not page_name or len(page_name) < 1):
 			return
+
 		page_item = self.get_page_item(page_name)
-		if not page_item:
+		if (not page_item):
+			self.info("  - page doesn't exist")
 			return
 
-		page_item.update_page_item(page_info, with_form=with_form)
-	
+		page_item.update_page_state(page_info, with_form=with_form, commit=commit)
+
+	# Update the db entry
+	def update_page_item(self, page_name):
+		if (page_name == None) or (len(page_name) < 1):
+			return
+
+		page_item = self.get_page_item(page_name)
+		if (not page_item):
+			self.info("  - page doesn't exist")
+			return
+
+		page_item.update_page_item()
+
+	def insert_page_item(self, page_name):
+		if (not page_name or len(page_name) < 1):
+			return
+
+		page_item = self.get_page_item(page_name)
+		if (page_item):
+			self.info("  - page already exists")
+			return
+
+		page_item.insert_page_item()
+
+
 	def get_page_item(self, page_name):
 		return self._pages[page_name]
 

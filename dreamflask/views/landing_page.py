@@ -19,7 +19,7 @@ def landing_page(session_db):
 	page += "			<button style='margin: 0.4%;padding: 0.4%;' class='button' type='submit' value='go' name='button'>GO</button>"
 	page += "	</div>"
 	page += "</form>"
-	page += base_pages.image_table_section("Creations", pg_images, session_db, None, limit=25)
+	page += base_pages.image_table_section("Creations", pg_images, session_db, None, show_all=False, limit=25)
 
 	page += "</div>"
 	page += "</body></html>"

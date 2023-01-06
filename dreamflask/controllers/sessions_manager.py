@@ -1,13 +1,15 @@
 import glob
 import os
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, delete
 from sqlalchemy.orm import Session
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 from dreamflask.models.sd_model import *
 from dreamflask.controllers.image_item import image_item
 from dreamflask.controllers.user_manager import user_manager
-from dreamflask.dream_consts import GENERATED_FOLDER
+from dreamflask.controllers.page_manager import PAGE_LIST
+from dreamflask.dream_consts import *
+from dreamflask.dream_utils import *
 
 class sessions_manager():
 
@@ -17,6 +19,8 @@ class sessions_manager():
 		self._engine = None
 		self._session = None
 		self._users = {}
+		self._public_key = None
+		self._private_key = None
 
 		self._logger = SD_Logger(__name__.split(".")[-1], logger_levels.INFO)
 		self.info = self._logger.info
@@ -32,8 +36,13 @@ class sessions_manager():
 		Base.metadata.create_all(self._engine)
 		self._session = Session(self._engine)
 
+		if not os.path.exists(PUBLIC_KEY) or not os.path.exists(PRIVATE_KEY):
+			generate_rsa_keys()
+
+		self._public_key = RSA.import_key(open(PUBLIC_KEY).read())
+		self._private_key = RSA.import_key(open(PRIVATE_KEY).read())
+
 		self.refresh(clean=True)
-		#self.info(f"tables: {Base.metadata.tables.keys()}")
 
 	# Light weight refresh
 	def refresh(self, clean=False):
@@ -46,7 +55,8 @@ class sessions_manager():
 		if clean:
 			self._users = {}
 		else:
-			for user_id in user_id_list_db:
+			self.info(f"user_id_list_db: {user_id_list_db}")
+			for user_id in list(user_id_list_db):
 				if not user_id in user_id_list_disk:
 					self.info(f"  - Stale user_id: {user_id}")
 					self.remove_user(user_id)
@@ -57,15 +67,12 @@ class sessions_manager():
 			user_id = os.path.basename(user_id_path)
 			user_session = self.get_user_by_id(user_id)
 
-			if not user_session:
-				self._users[user_id] = self.add_user(user_id)
-
 			self.info(f"  - init user id: {user_id}")
 			# Refresh if we have, add if we don't
 			if user_session:
 				user_session.refresh()
 			else:
-				self._users[user_id] = self.add_user(user_id)
+				self.add_user(user_id)
 
 	def exec_in_session(self, statement):
 		with Session(self._engine) as session:
@@ -79,14 +86,39 @@ class sessions_manager():
 		# Check if the display_name is present
 		with Session(self._engine) as session:
 			self.info(f"Adding session: {user_id}")
-			self._users[user_id] = user_manager(user_id, self._engine, create=True)
+			new_user_manager = user_manager(user_id, self._engine, create=True)
+			self._users[user_id] = new_user_manager
 		return self._users[user_id]
 
+	# TODO: Remove user and all image files
 	def remove_user(self, user_id):
-		# TODO: Remove user and all image files
-		user_info = self.get_user_by_id(user_id)
-		if user_info:
-			pass
+		self.info(f"Removing user: '{user_id}'")
+		with Session(self.engine) as session:
+			user_info = self.get_user_by_id(user_id)
+			if user_info:
+				# Remove all images from the disk and DB
+				self.info("  - removing image files and entries")
+				all_file_infos = user_info.image_manager.get_all_file_infos()
+				for file_info in all_file_infos:
+					user_info.image_manager.remove_file(file_info.id)
+
+				self.info("  - removing page entries")
+				for page_name in PAGE_LIST:
+					user_info.page_manager.remove_page(page_name)
+
+				self.info("  - removing user entry")
+				session.execute(delete(UserInfo).\
+					where(UserInfo.user_id == user_id))
+				session.commit()
+				del(self._users[user_id])
+
+				# Remove user directories
+				self.info("  - removing folders")
+				for folder in FOLDERS_LIST:
+					try:
+						os.rmdir(f"{folder}/{user_id}")
+					except Exception as e:
+						self.info(f"    + not present: '{folder}/{user_id}'")
 
 	def get_users(self):
 		return self._users
@@ -94,14 +126,9 @@ class sessions_manager():
 	def get_user_ids(self):
 		return self._users.keys()
 
-	def get_user_by_id(self, user_id, create=True):
-		if (user_id != None and len(user_id) < 1):
+	def get_user_by_id(self, user_id):
+		if (user_id == None or len(user_id) < 1):
 			return None
-
-		#self.info(f"get display_name: {user_id}")
-		if (not user_id in self._users):
-			if create:
-				self._users[user_id] = self.add_user(user_id)
 
 		return self._users.get(user_id)
 
@@ -168,7 +195,7 @@ class sessions_manager():
 		pg_images = []
 		for user_id in self.get_user_ids():
 			user_info = self.get_user_by_id(user_id)
-			pg_images.extend(user_info.file_manager.get_playground_file_infos())
+			pg_images.extend(user_info.image_manager.get_playground_file_infos())
 		return pg_images
 
 	@property

@@ -20,6 +20,9 @@ class UserInfo(Base):
 	file_infos = relationship(
 		"FileInfo", back_populates='owner', cascade='all, delete-orphan'
 	)
+	#page_infos = relationship(
+	#	"FileInfo", back_populates='owner', cascade='all, delete-orphan'
+	#)
 
 	def as_dict(self):
 		return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -40,6 +43,7 @@ class FileInfo(Base):
 	size = Column(String, nullable=False)
 	show_meta = Column(String, nullable=False)  # Display meta data on view: true/false
 	show_owner = Column(String, nullable=False) # Display owner info on view: true/false
+	is_visible = Column(String, nullable=False) # Is visible to public
 	width = Column(String, nullable=False)
 	height = Column(String, nullable=False)
 	meta = Column(String)

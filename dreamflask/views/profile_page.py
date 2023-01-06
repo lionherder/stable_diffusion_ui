@@ -29,8 +29,19 @@ def profile_page(sessions_db, session_id):
 	page += "	<div class='flex-container'>"
 	page += f"		<textarea style='margin: 5px 0px 0px 0px;' onInput=adjustTextAreaHeight() onClick=adjustTextAreaHeight() {{ this.form.submit(); return false; }}' placeholder='Bio' rows=2 id='bio' autofocus name='bio'>{escape(user_info.bio)}</textarea>"
 	page += "	</div>"
+	page += "		<div class='page-title' style='font-size:small;text-align:left;'>"
+	page += "			Reset: Rebuild your image DB library<br>"
+	page += "			Nuking your account is forever!"
+	page += "		</div>"
+	page += "	</div>"
 
-	page += base_pages.buttons_section(['Update', 'Return', 'Refresh'])
+	page += base_pages.buttons_section(['Update', 'Return', 'Refresh', 'Reset', 'Nuke Account', 'Clear'])
+	page += f"	<div class='flex-container' style='flex-direction:row;font-family:Arial;font-size:small;'>"
+	page += f"		<label style='padding: 0 6px 0 0;justify-content:left;'>"
+	page += f"		<input type='checkbox' name='confirm' value='True'>Confirm</input>"
+	page += f"		</label>"
+	page += f"	</div>"
+
 	page += "  </form>"
 
 	page += "</div>"

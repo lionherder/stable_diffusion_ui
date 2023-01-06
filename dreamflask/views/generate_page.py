@@ -84,18 +84,18 @@ def generate_page(sessions_db, session_id):
 	page += "		<label>Init Image&nbsp"
 	page += "			<select style='id='init_image' name='init_image'>"
 	page += "				<option value='none'>No Init Image</option>"
-	for file_info in (user_info.file_manager.get_generated_file_infos() + user_info.file_manager.get_workbench_file_infos()):
+	for file_info in (user_info.image_manager.get_generated_file_infos() + user_info.image_manager.get_workbench_file_infos()):
 		selected = "selected" if (file_info.id == page_info.get('init_image', '')) else ""
 		page += f"			<option value='{file_info.id}' {selected}>{os.path.basename(file_info.filename)}</option>"
 	page += "			</select>"
 	page += "		</label>"
 	page += base_pages.generate_label_input('Influence [Less <0.0 - 1.0> More]', 'strength', page_info.get('strength'), 3)
 	page += "	</div>"
-	page += base_pages.buttons_section(['Generate', 'Refresh', 'Reset', 'Upscale', 'Upload',  'Clean Files', 'Themes', 'Montage', 'Playground', 'Image Info'])
+	page += base_pages.buttons_section(['Generate', 'Refresh', 'Upscale', 'Upload',  'Clean Files', 'Montage', 'Playground', 'Image Info', 'Clear'])
 	page += "  </form>"
 
-	page += base_pages.generated_images_section(user_info.file_manager.get_generated_file_infos(), sessions_db, session_id)
-	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id)
+	page += base_pages.generated_images_section(user_info.image_manager.get_generated_file_infos(), sessions_db, session_id, show_all=True)
+	page += base_pages.workbench_images_section(user_info.image_manager.get_workbench_file_infos(), sessions_db, session_id, show_all=True)
 
 	page += "</div>"
 	page += "</body></html>"

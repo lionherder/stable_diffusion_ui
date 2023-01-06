@@ -2,8 +2,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
-from dreamflask.controllers.file_manager import file_manager
-from dreamflask.controllers.page_manager import page_manager
 from dreamflask.models.sd_model import UserInfo
 
 class user_item():
@@ -31,13 +29,12 @@ class user_item():
 			user_info = session.execute(select(UserInfo).where(UserInfo.user_id==str(self._user_id))).fetchone()
 			if (not user_info or len(user_info) < 1):
 				if create:
-					self.info(f"Creating new user: {self._user_id}")
 					self._user_info = self.insert_user_info()
 				else:
 					self._user_info = self.get_user_info_fields()
 					self._committed = False
 			else:
-				self.info(f"User exists: {self._user_id} -> {user_info[0]}")
+				self.info(f"  - user exists: {self._user_id} -> {user_info[0]}")
 				self._user_info = user_info[0].as_dict()
 				self._committed = True
 

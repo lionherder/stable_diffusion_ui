@@ -43,14 +43,14 @@ def montage_page(sessions_db, session_id):
 	page += "		<label>"
 	page += "	</div>"
 
-	page += base_pages.buttons_section(['Create', 'Return', 'Refresh', 'Clean Files', 'Reset'])
+	page += base_pages.buttons_section(['Create', 'Return', 'Refresh', 'Clean Files', 'Clear'])
 	page += base_pages.image_selection_buttons(image_selections)
 
-	page += base_pages.checkbox_table_section("Generated Images", user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_", selected_list=page_info.get('files'))
-	page += base_pages.checkbox_table_section("Workbench Images", user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Generated Images", user_info.image_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Workbench Images", user_info.image_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_", selected_list=page_info.get('files'))
 
 	page += base_pages.image_selection_buttons(image_selections)
-	page += base_pages.buttons_section(['Create', 'Return', 'Refresh', 'Clean Files', 'Reset'])
+	page += base_pages.buttons_section(['Create', 'Return', 'Refresh', 'Clean Files', 'Clear'])
 
 
 	page += "	</form>"

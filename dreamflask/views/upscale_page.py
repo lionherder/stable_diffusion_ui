@@ -34,16 +34,16 @@ def upscale_page(session_db, session_id):
 	page += "		<label>"
 	page += "			<select id='upscale_image' name='upscale_image'>"
 	page += "				<option value='none'>Upscale Image</option>"
-	for file_info in (user_info.file_manager.get_generated_file_infos() + user_info.file_manager.get_workbench_file_infos()):
+	for file_info in (user_info.image_manager.get_generated_file_infos() + user_info.image_manager.get_workbench_file_infos()):
 		page += f"			<option value='{file_info.id}'>{os.path.basename(file_info.filename)}</option>"
 	page += "			</select>"
 	page += "		</label>"
 	page += "	</div>"
 
-	page += base_pages.buttons_section(['Upscale', 'Return', 'Refresh', 'Reset', 'Clean Files'])
+	page += base_pages.buttons_section(['Upscale', 'Return', 'Refresh', 'Clean Files', 'Clear'])
 	page += "</form>"
-	page += base_pages.generated_images_section(user_info.file_manager.get_generated_file_infos(), session_db, session_id)
-	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), session_db, session_id)
+	page += base_pages.generated_images_section(user_info.image_manager.get_generated_file_infos(), session_db, session_id)
+	page += base_pages.workbench_images_section(user_info.image_manager.get_workbench_file_infos(), session_db, session_id)
 	page += "</div>"
 	page += "</body></html>"
 

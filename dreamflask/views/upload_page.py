@@ -25,7 +25,7 @@ def upload_page(session_db, session_id):
 	page += base_pages.buttons_section(['Upload', 'Return', 'Refresh', 'Clear', 'Clean Files'])
 	page += "	</form>"
 
-	page += base_pages.workbench_images_section(user_info.file_manager.get_workbench_file_infos(), session_db, session_id)
+	page += base_pages.workbench_images_section(user_info.image_manager.get_workbench_file_infos(), session_db, session_id)
 
 	page += "</div>"
 	page += "</body></html>"

@@ -1,8 +1,56 @@
 import requests
+import base64
 from dreamflask.dream_consts import *
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 
-log = SD_Logger("FlaskServer", logger_levels.INFO)
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
+from Crypto.Cipher import AES, PKCS1_OAEP
+
+log = SD_Logger("DreamUtils", logger_levels.INFO)
+
+def clean_name(name, replace='_'):
+	return ''.join( [ c if c.isalnum() or c == "_" or c == "-"  else replace for c in name ] )[:36]
+
+def allowed_file(filename):
+	return '.' in filename and \
+			filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def generate_rsa_keys():
+	key = RSA.generate(2048)
+	private_key = key.export_key()
+	file_out = open(PRIVATE_KEY, "wb")
+	file_out.write(private_key)
+	file_out.close()
+
+	public_key = key.publickey().export_key()
+	file_out = open(PUBLIC_KEY, "wb")
+	file_out.write(public_key)
+	file_out.close()
+
+def encrypt_text(plain_text, public_key):
+	session_key = get_random_bytes(16)
+
+	# Encrypt the session key with the public RSA key
+	cipher_rsa = PKCS1_OAEP.new(public_key)
+	enc_session_key = cipher_rsa.encrypt(session_key)
+
+	# Encrypt the data with the AES session key
+	cipher_aes = AES.new(session_key, AES.MODE_EAX)
+	ciphertext, tag = cipher_aes.encrypt_and_digest(plain_text.encode("utf-8"))
+	return [ x for x in (enc_session_key, cipher_aes.nonce, tag, ciphertext) ]
+
+def decrypt_text(enc_obj, private_key):
+	# log.info([ x for x in  enc_obj.split(' ') ])
+	enc_session_key, nonce, tag, ciphertext = [ base64.b64decode(x) for x in  enc_obj.split(' ') ]
+	# Decrypt the session key with the private RSA key
+	cipher_rsa = PKCS1_OAEP.new(private_key)
+	session_key = cipher_rsa.decrypt(enc_session_key)
+
+	# Decrypt the data with the AES session key
+	cipher_aes = AES.new(session_key, AES.MODE_EAX, nonce)
+	data = cipher_aes.decrypt_and_verify(ciphertext, tag)
+	return data.decode("utf-8")
 
 def convert_bytes(bytes_number):
 	tags = [ "Bytes", "Kb", "Mb", "Gb", "Tb" ]

@@ -19,16 +19,16 @@ def playground_page(sessions_db, session_id):
 	page += "		<input type='hidden' name='page_name' value='playground_page'>"
 	page += f"		<input type='hidden' name='session_id' value='{session_id}'>"
 
-	page += base_pages.buttons_section(['Add', 'Return', 'Refresh', 'Remove', 'Image Info'])
+	page += base_pages.buttons_section(['Add', 'Return', 'Refresh', 'Remove', 'Image Info', 'Clear'])
 	page += base_pages.image_selection_buttons(image_selections)
 
 	page += base_pages.image_table_section("All Playground Images (Public)", sessions_db.get_all_playground_file_infos(), sessions_db, session_id)
-	page += base_pages.checkbox_table_section("Your Playground Images (Public)", user_info.file_manager.get_playground_file_infos(), sessions_db, session_id, prefix="p_", selected_list=page_info.get('files'))
-	page += base_pages.checkbox_table_section("Generated Images", user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_", selected_list=page_info.get('files'))
-	page += base_pages.checkbox_table_section("Workbench Images", user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Your Playground Images (Public)", user_info.image_manager.get_playground_file_infos(), sessions_db, session_id, prefix="p_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Generated Images", user_info.image_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_", selected_list=page_info.get('files'))
+	page += base_pages.checkbox_table_section("Workbench Images", user_info.image_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_", selected_list=page_info.get('files'))
 
 	page += base_pages.image_selection_buttons(image_selections)
-	page += base_pages.buttons_section(['Add', 'Return', 'Refresh', 'Remove', 'Image Info'])
+	page += base_pages.buttons_section(['Add', 'Return', 'Refresh', 'Remove', 'Image Info', 'Clear'])
 
 	page += "	</form>"
 	page += "</div>"

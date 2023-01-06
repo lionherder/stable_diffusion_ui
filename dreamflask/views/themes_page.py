@@ -34,7 +34,7 @@ def themes_page(session_info, session_id):
 			page += f"		<p style='white-space: nowrap'>{prompt}</p>"
 			page += "	</div>"
 		page += "</div>"
-	page += base_pages.buttons_section(['Generate', 'Return', 'Reset'])
+	page += base_pages.buttons_section(['Generate', 'Return', 'Clear'])
 	page += "</div>"
 	page += "</body></html>"
 

@@ -2,6 +2,13 @@ GENERATED_FOLDER = 'images/img-samples'
 WORKBENCH_FOLDER = 'images/img-workbench'
 THUMBNAILS_FOLDER = 'images/img-thumbnails'
 PLAYGROUND_FOLDER = 'images/img-playground'
+GALLERY_FOLDER = 'images/img-gallery'
+
+FOLDERS_LIST = [ GENERATED_FOLDER, WORKBENCH_FOLDER, THUMBNAILS_FOLDER,
+				 PLAYGROUND_FOLDER, GENERATED_FOLDER ]
+
+PUBLIC_KEY = "public.pem"
+PRIVATE_KEY = "private.pem"
 
 IMG_FILES = "dreamflask/images"
 JS_FILES = "dreamflask/js"
@@ -17,6 +24,11 @@ PROD_DB = "sessions_prod.db"
 
 SD_API_PORT = 7860
 SD_API_HOST = "http://127.0.0.1"
+
+PORT = "8080"
+HOSTNAME = "wolftails.org"
+SHARE_URL = f"http://{HOSTNAME}:{PORT}/share"
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 OPTIONS_API_URL = f"{SD_API_HOST}:{SD_API_PORT}/sdapi/v1/options"

@@ -29,8 +29,8 @@ class page_item():
 		self._user_id = user_id
 		self._page_name = page_name
 		self._engine = engine
-		self._committed = False
-		self._page_item = None
+		self._modified = False
+		self._page_info = {}
 		self._page_state = {}
 
 		self._logger = SD_Logger(__name__.split(".")[-1], logger_levels.INFO)
@@ -40,99 +40,130 @@ class page_item():
 		self.init()
 
 	def init(self):
-		#self.info(f"Init: {page}")
-		self.update_page_item({})
+		#self.info(f"Init: {page_name}")
+		# Create base state with default properties for the page
+		self.update_page_state({})
+		# Refresh state from DB if there is an entry
+		self.refresh()
+		# Insert the page in DB if it's not there
+		self.insert_page_item()
 
-	def update_page_item(self, page_info, with_form=False):
+	def update_page_state(self, page_info={}, with_form=False, commit=False):
+		#self.info(f"Updating page info for: '{self._page_name}' -> [{page_info}]")
 		if (not self._page_name or len(self._page_name) < 1):
 			return None
+		
 		if (page_info == None):
 			return None
 
-		new_page_info = {}
-		#self.info(f"Updating page info for: '{self._page_name}' -> [{page_info}]")
+		update_page_state = {}
 		if self.page_name == LANDING:
-			new_page_info = self.update_landing_page_state(page_info, with_form)
+			update_page_state = self.update_landing_page_state(page_info, with_form)
 		elif self.page_name == GENERATE:
-			new_page_info = self.update_generate_page_state(page_info, with_form)
+			update_page_state = self.update_generate_page_state(page_info, with_form)
 		elif self.page_name == UPSCALE:
-			new_page_info = self.update_upscale_page_state(page_info, with_form)
+			update_page_state = self.update_upscale_page_state(page_info, with_form)
 		elif self.page_name == UPLOAD:
-			new_page_info = self.update_upload_page_state(page_info, with_form)
+			update_page_state = self.update_upload_page_state(page_info, with_form)
 		elif self.page_name == CLEANUP:
-			new_page_info = self.update_cleanup_page_state(page_info, with_form)
+			update_page_state = self.update_cleanup_page_state(page_info, with_form)
 		elif self.page_name == THEMES:
-			new_page_info = self.update_themes_page_state(page_info, with_form)
+			update_page_state = self.update_themes_page_state(page_info, with_form)
 		elif self.page_name == MONTAGE:
-			new_page_info = self.update_montage_page_state(page_info, with_form)
+			update_page_state = self.update_montage_page_state(page_info, with_form)
 		elif self.page_name == PLAYGROUND:
-			new_page_info = self.update_playground_page_state(page_info, with_form)
+			update_page_state = self.update_playground_page_state(page_info, with_form)
 		elif self.page_name == PROFILE:
-			new_page_info = self.update_profile_page_state(page_info, with_form)
+			update_page_state = self.update_profile_page_state(page_info, with_form)
 		elif self.page_name == IMAGES:
-			new_page_info = self.update_image_page_state(page_info, with_form)
+			update_page_state = self.update_image_page_state(page_info, with_form)
 		elif self.page_name == EDITIMAGE:
-			new_page_info = self.update_edit_image_page_state(page_info, with_form)
+			update_page_state = self.update_edit_image_page_state(page_info, with_form)
 		else:
-			self.info(f"***** ERROR: unhandled page name {self.page_name}")
-			new_page_info = None
+			self.info(f"***** ERROR: unhandled page name {self._page_name}")
+			update_page_state = None
 			return None
 
-		self._page_item = page_info
-		self._page_state = new_page_info
+		self._page_info = {
+			'id' : None,
+			'page_name' : self._page_name,
+			'page_info' : json.dumps(update_page_state),
+			'u_time' : time.time(),
+			'owner_id' : self._user_id
+		}
 
-		return self._page_item
+		# Commit, if we ask
+		if (commit):
+			self.update_page_item()
 
-	def insert_page_item(self):
-		self.info(f"  - inserting page: {self.filename}")
+		self._page_state = update_page_state
 
-		new_page_args = self.get_file_info_fields()
+	# Create/update page item in database
+	def update_page_item(self):
+		#self.info("  - committing the update")
 		with Session(self._engine) as session:
-			self.info(f"new_page_args: {self._image_info}")
-			new_page_info = PageInfo(**new_page_args)
+			page_info_resp = session.execute(select(PageInfo).\
+				where(PageInfo.owner_id==self._user_id).\
+				where(PageInfo.page_name==self._page_name)).fetchone()
+			#self.info(f"  - page_info_resp: {page_info_resp}")
+
+			# Always create the record if needed
+			if (page_info_resp == None):
+				self.insert_page_item()
+			else:
+				#self.info("  - updating record")
+				session.query(PageInfo).\
+					filter(PageInfo.owner_id==self._user_id).\
+					filter(PageInfo.page_name==self._page_name).\
+					update(self.get_page_info_fields())
+				session.commit()
+			self._modified = True
+		return self._page_info
+
+	# Insert page into DB if page isn't in DB
+	def insert_page_item(self):
+		#self.info(f"  - inserting page: {self._page_name}")
+
+		with Session(self._engine) as session:
+			page_info_resp = session.execute(select(PageInfo).\
+				where(PageInfo.owner_id==self._user_id).\
+				where(PageInfo.page_name==self._page_name)).fetchone()
+			#self.info(f"  - page_info_resp: {page_info_resp[0].as_dict()}")
+
+			# Don't insert if it's there
+			if (page_info_resp):
+				#self.info(f"  - page already exists.  skipping.")
+				return
+
+			#self.info(f"  - new_page_args: {self.get_page_info_fields()}")
+			new_page_info = PageInfo(**self.get_page_info_fields())
 			session.add(new_page_info)
 			session.commit()
-			self._committed = True
 
-			self._page_item = new_page_info.as_dict()
-			self._page_state = json.loads(self._page_item['page_info'])
+			self._modified = True
+			self._page_info = new_page_info.as_dict()
+			self._page_state = json.loads(self._page_info['page_info'])
+		return self._page_state
 
 	def refresh(self):
-		if not self.committed:
-			self._page_item = {
-					'id' : '-1',
-					'page_name' : self._page_name,
-					'page_info' : {},
-					'u_time' : time.time(),
-					'status_msg' : 'Okie Dokie!'
-				}
-			return self.page_state
-
 		with Session(self._engine) as session:
 			page_info = session.execute(select(PageInfo).\
 				where(PageInfo.owner_id == self._user_id).\
 				where(PageInfo.page_name == self._page_name)).fetchone()
 			if (page_info):
-				self._page_item = page_info.as_dict()
-				self._page_state = json.loads(page_info.page_info)
+				self._page_info = page_info[0].as_dict()
+				self._page_state = json.loads(self._page_info.get('page_info'))
 			else:
-				self._page_item = {
-					'id' : '-1',
-					'page_name' : self._page_name,
-					'page_info' : {},
-					'u_time' : time.time(),
-					'status_msg' : 'Okie Dokie!'
-				}
-				self._committed = False
-
-
-		return self.page_state
-
-	def get_page_state(self):
+				self._modified = False
 		return self._page_state
 
+	def get_page_info_fields(self):
+		new_file_fields = [ 'page_name', 'page_info', 'u_time', 'owner_id' ]
+		new_file_info = { k : self._page_info[k] for k in new_file_fields }
+		new_file_info['page_info'] = json.dumps(self._page_state)
+		return new_file_info
+
 	def update_landing_page_state(self, page_state, with_form=False):
-		self.info(f"Update landing page: {page_state}")
 		return {
 			'page_name' : LANDING,
 			'session_id' : page_state.get('session_id', ''),
@@ -149,7 +180,7 @@ class page_item():
 			'neg_prompt' : page_state.get('neg_prompt', ''),
 			'button' : page_state.get('button', ''),
 			'init_image' : page_state.get('init_image', 'none'),
-			'model' : page_state.get('model', 'sd-v2_768.ckpt [2c02b20a]'),
+			'model' : page_state.get('model', 'sd-v2-1_768-ema-pruned.ckpt [4bdfc29c]'),
 			'width' : page_state.get('width', '768'),
 			'height' : page_state.get('height', '768'),
 			'status_msg' : page_state.get('status_msg', 'Okie Dokie!'),
@@ -261,6 +292,7 @@ class page_item():
 			'title' : page_state.get('title', ''),
 			'show_owner' : page_state.get('show_owner', 'False'),
 			'show_meta'  : page_state.get('show_meta', 'False'),
+			'is_visible'  : page_state.get('is_visible', 'False'),
 			'meta' : page_state.get('meta', '')
 		}
 
@@ -268,22 +300,32 @@ class page_item():
 		return 'page_item: {' + ','.join([ f" '{k}' : '{v}'" for k,v in self._page_state.items() ]) + ' }'
 
 	def get(self, key, default=None):
-		if not default:
+		if default == None:
 			return self._page_state[key]
 
 		return self._page_state.get(key, default)
 
 	def set(self, key, value):
 		self._page_state[key] = value
+		self._modified = True
 		return value
+
+	# This is on almost every page
+	@property
+	def status_msg(self):
+		return self._page_state.get('status_msg', '')
+
+	@status_msg.setter
+	def status_msg(self, msg):
+		self.set('status_msg', msg)
 
 	@property
 	def committed(self):
-		return self._committed
+		return self._modified
 
 	@property
 	def id(self):
-		return self._page_item.get('id', -1)
+		return self._page_info.get('id', -1)
 
 	@property
 	def page_name(self):
@@ -295,5 +337,5 @@ class page_item():
 
 	@property
 	def page_info(self):
-		return self._page_item
+		return self._page_info
 

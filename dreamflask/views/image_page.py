@@ -19,11 +19,11 @@ def image_page(sessions_db, session_id):
 	page += f"	<input type='hidden' name='session_id' value='{session_id}'>"
 	page += f"	<input type='hidden' name='image_id' id='image_id'>"
 
-	page += base_pages.buttons_section(['Update', 'Return', 'Refresh', 'Playground'])
-	page += base_pages.editimage_table_section("Playground Images", user_info.file_manager.get_playground_file_infos(), sessions_db, session_id, prefix="p_")
-	page += base_pages.editimage_table_section("Generated Images", user_info.file_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_")
-	page += base_pages.editimage_table_section("Workbench Images", user_info.file_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_")
-	page += base_pages.buttons_section(['Update', 'Return', 'Refresh', 'Playground'])
+	page += base_pages.buttons_section(['Refresh', 'Return', 'Playground'])
+	page += base_pages.editimage_table_section("Playground Images", user_info.image_manager.get_playground_file_infos(), sessions_db, session_id, prefix="p_")
+	page += base_pages.editimage_table_section("Generated Images", user_info.image_manager.get_generated_file_infos(), sessions_db, session_id, prefix="g_")
+	page += base_pages.editimage_table_section("Workbench Images", user_info.image_manager.get_workbench_file_infos(), sessions_db, session_id, prefix="w_")
+	page += base_pages.buttons_section(['Refresh', 'Return', 'Playground'])
 	page += "  </form>"
 
 	page += "</div>"

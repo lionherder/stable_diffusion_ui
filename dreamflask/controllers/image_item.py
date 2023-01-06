@@ -20,7 +20,6 @@ class image_item():
 		self._committed = False # Has this been committed to the DB
 		self._engine = engine
 		self._filename = image_info.get('filename', '')
-		self._hash = image_info.get('hash', '')
 		self._owner_info = None
 
 		self._logger = SD_Logger(__name__.split(".")[-1], logger_levels.INFO)
@@ -80,13 +79,13 @@ class image_item():
 
 		return self._image_info
 
-	def refresh_info(self):
-		self.info(f"  - refreshing: {self.filename} [{self.hash}]")
-		self._image_info = self.gather_info()
+	def refresh(self):
+		self.info(f"  - refreshing: {self.filename} [{self.id}]")
+		self.gather_info()
 
 	def get_file_info_fields(self):
 		new_file_fields = [ 'title', 'filename', 'filetype', 'c_time', 'a_time', 'm_time', 'size',
-							 'show_meta', 'show_owner', 'width', 'height', 'meta', 'thumbnail', 'owner_id' ]
+							 'show_meta', 'show_owner', 'is_visible', 'width', 'height', 'meta', 'thumbnail', 'owner_id' ]
 		return { k : self._image_info[k] for k in new_file_fields }
 
 	# Push info to disk
@@ -103,24 +102,26 @@ class image_item():
 				update(update_file_args)
 			session.commit()
 			self._committed = True
-		self.refresh_info()
+		self.refresh()
 
 	def insert_file_info(self):
 		self.info(f"  - inserting file: {self.filename}")
 
 		new_file_args = self.get_file_info_fields()
 		with Session(self._engine) as session:
-			#self.info(f"new_file_args: {self._image_info}")
+			self.info(f"new_file_args: {new_file_args}")
 			new_file_info = FileInfo(**new_file_args)
 			session.add(new_file_info)
 			session.commit()
-			
 			self._committed = True
+			self.info(f"new_file_info: {new_file_info}")
 			self._image_info = new_file_info.as_dict()
+			self.info(f"New image hash: {self.id}")
+		self.refresh()
 
 	def gather_info(self):
-		img_info = {}
-		self.info(f"Gathering info: [{self._filename}]")
+		image_info = {}
+		self.info(f"  - gathering info: [{self._filename}]")
 
 		if (not os.path.exists(self._filename)):
 			self.info("  - file doesn't exist")
@@ -133,12 +134,12 @@ class image_item():
 				file_info_resp = session.execute(select(FileInfo).where(FileInfo.filename==self._filename)).fetchone()
 				if (file_info_resp and len(file_info_resp) > 0):
 					#self.info(f"file_info_resp: {file_info_resp[0].as_dict()}")
-					img_info = file_info_resp[0].as_dict()
+					image_info = file_info_resp[0].as_dict()
 					self._owner_info = file_info_resp[0].owner
 					if (self._owner_info):
-						self._image_info['display_name'] = self._owner_info.as_dict()
+						image_info['display_name'] = self._owner_info.as_dict()
 					else:
-						self._image_info['display_name'] = "Edit Profile"
+						image_info['display_name'] = "Edit Profile"
 					self._committed = True # Setting it anyways
 		else:
 			# Gather up some file stats
@@ -146,43 +147,37 @@ class image_item():
 			stats = os.stat(self._filename)
 			img = Image.open(self._filename)
 
-			img_info = {
+			image_info = {
 				'title' : '',
 				'filename' : self._image_info.get('filename', self._filename),
-				'hash' : self._image_info.get('id', self._hash),
-				'id' : self._hash,
+				'id' : self._image_info.get('id', -1),
 				'c_time' : stats.st_ctime,
 				'a_time' : stats.st_atime,
 				'm_time' : stats.st_mtime,
 				'size' : stats.st_size,
 				'show_meta' : 'False',
 				'show_owner' : 'False',
+				'is_visible' : 'True',
 				'owner_id' : self._owner_id,
 				'thumbnail' : '',
 				'width' : img.width,
 				'height' : img.height,
-				'meta' : ''
+				'meta' : self._image_info.get('meta', '')
 			}
-			img_info['basename'] = os.path.basename(self._image_info.get('filename', ''))
+			image_info['basename'] = os.path.basename(self._image_info.get('filename', ''))
 
 			if self._filename.find('img-samples') > -1:
-				img_info['filetype'] = GENERATED
+				image_info['filetype'] = GENERATED
 			elif self._filename.find('img-workbench') > -1:
-				img_info['filetype']  = WORKBENCH
+				image_info['filetype']  = WORKBENCH
 			elif self._filename.find('img-thumbnails') > -1:
-				img_info['filetype']  = THUMBNAIL
+				image_info['filetype']  = THUMBNAIL
 			elif self._filename.find('img-playground') > -1:
-				img_info['filetype']  = PLAYGROUND
+				image_info['filetype']  = PLAYGROUND
 
-			if (self.filetype == THUMBNAIL):
-				img_info['meta'] = THUMBNAIL
-			elif (len(img.info.keys()) < 1):
-				img_info['meta'] = "No Data"
-			else:
-				img_info['meta'] = ''.join([ f'{img.info[i]} ' for i in img.info ])
-
-		#self.info(f"  - img_info: {img_info}")
-		return img_info
+		self._image_info = image_info
+		#self.info(f"  - image_info: {image_info}")
+		return self._image_info
 
 	def exists(self):
 		return os.path.exists(self.filename)
@@ -204,6 +199,9 @@ class image_item():
 	def as_file_info_fields(self):
 		return self.get_file_info_fields()
 
+	#
+	# Get title text
+	#
 	def get_title_text(self, viewer_id=None):
 		title = ""
 
@@ -211,12 +209,16 @@ class image_item():
 			title += f'''Title: {self.title}
 '''
 
+		if (self.owner_id == viewer_id):
+			title += f'''[ {os.path.basename(self.filename)} - {self.id}]
+'''
+
 		if (self.show_owner) or (self.owner_id == viewer_id):
 			title += f'''Owner: {self.display_name}
 '''
 
 		if (self.show_meta) or (self.owner_id == viewer_id):
-			title += f'''{self.metadata}
+			title += f'''{self.meta}
 '''
 		title +=f'Size: {convert_bytes(self.size)} [ {self.width}x{self.height} ]'
 		return title
@@ -228,7 +230,7 @@ class image_item():
 		return self._image_info
 
 	def set(self, k, v):
-		self.info(f"  - setting [{self.hash}] '{k}' = '{v}'")
+		self.info(f"  - setting [{self.id}] '{k}' = '{v}'")
 		self._image_info[k] = v
 		return self._image_info[k]
 
@@ -255,10 +257,6 @@ class image_item():
 		return self._image_info.get('size', -1)
 
 	@property
-	def hash(self):
-		return self._image_info.get('id', -1)
-
-	@property
 	def id(self):
 		return self._image_info.get('id', -1)
 
@@ -267,7 +265,7 @@ class image_item():
 		return self._image_info.get('thumbnail', '')
 
 	@property
-	def metadata(self):
+	def meta(self):
 		return self._image_info.get('meta', '')
 
 	@property
@@ -303,6 +301,11 @@ class image_item():
 	def show_meta(self):
 		#self.info(f"show_meta: {self._image_info.get('show_meta') == 'True'}")
 		return self._image_info.get('show_meta', 'False') == 'True'
+
+	@property
+	def is_visible(self):
+		#self.info(f"is_visible: {self._image_info.get('is_visible') == 'True'}")
+		return self._image_info.get('is_visible', 'True') == 'True'
 
 	@property
 	def committed(self):

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import io
 import json
 import sys
 import traceback
@@ -11,6 +12,7 @@ sys.path.append('dreamflask')
 import os
 import time
 import requests
+import gradio
 
 from gradio.processing_utils import encode_pil_to_base64, decode_base64_to_image
 
@@ -24,16 +26,14 @@ from flask import request, send_file, escape
 from werkzeug.routing import BaseConverter
 from werkzeug.utils import secure_filename
 
+from dreamflask.dream_utils import *
+from dreamflask.dream_consts import *
 from dreamflask.controllers.sessions_manager import sessions_manager
 from dreamflask.controllers.page_manager import *
 from dreamflask.controllers.image_item import image_item
 from dreamflask.libs.montage import create_montage
 from dreamflask.libs.sd_logger import SD_Logger, logger_levels
 from dreamflask.views.error_pages import page_404, share_404
-from dreamflask.dream_utils import convert_bytes, generate_options, generate_img2img
-from dreamflask.dream_utils import generate_progress, generate_txt2img, generate_upscaling
-
-from dreamflask.dream_consts import *
 from dreamflask.views.landing_page import landing_page
 from dreamflask.views.generate_page import generate_page
 from dreamflask.views.themes_page import themes_page
@@ -60,13 +60,6 @@ class WildcardConverter(BaseConverter):
 
 app.url_map.converters['wildcard'] = WildcardConverter
 
-def clean_name(name, replace='_'):
-	return ''.join( [ c if c.isalnum() or c == "_" or c == "-"  else replace for c in name ] )[:36]
-
-def allowed_file(filename):
-	return '.' in filename and \
-			filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 @app.route("/", methods = ['GET', 'POST'])
 def index():
 	session_id = request.form.get('session_id', 'default')
@@ -74,12 +67,21 @@ def index():
 	if (request.method != "POST" or session_id == 'default' or len(session_id) < 1):
 		return landing_page(sessions_db)
 
-	user_obj = sessions_db.get_user_by_id(session_id, create=True)
+	user_obj = sessions_db.get_user_by_id(session_id)
+
+	if (not user_obj):
+		user_obj = sessions_db.add_user(session_id)
+
 	page_name = request.form.get('page_name', '')
 	page_name = page_name if page_name != NAVBAR else PROFILE
 
-	if user_obj:
-		user_obj.page_manager.update_page_item(page_name, request.form, with_form=True)
+	if (not page_name in PAGE_LIST):
+		return landing_page(sessions_db)
+
+	# Update page state with new request.form
+	user_obj.page_manager.update_page_state(page_name, request.form, with_form=True, commit=True)
+	# Write the new state to the DB
+	user_obj.page_manager.update_page_item(page_name)
 
 	log.info(f"Dispatching user '{session_id}' -> '{page_name}'")
 	#log.info(f"request.form: {request.form}")
@@ -119,24 +121,39 @@ def EditImagePage(user_id):
 		return image_page(sessions_db, user_id)
 
 	if (button == 'Update'):
-		img_item = user_info.file_manager.get_file_item_by_hash(image_id)
+		img_item = user_info.image_manager.get_file_item_by_hash(image_id)
 		if (not img_item):
+			page_item.status_msg = "Image doesn't exist in the DB"
 			return edit_image_page(sessions_db, user_id, image_id)
-		# Update the image fields
-		img_item.update_file_info(img_info= {
-			'title' : page_item.get('title','')[:128],
-			'show_owner' : page_item.get('show_owner'),
-			'show_meta' :  page_item.get('show_meta'),
-			'meta' : page_item.get('meta', '')[:1024] } )
-		page_item.set('status_msg', "Image info updated")
-		user_info.refresh()
 
+		img_item.update_file_info(img_info= {
+			'title' : page_item.get('title',''),
+			'show_owner' : page_item.get('show_owner', 'False'),
+			'show_meta' :  page_item.get('show_meta', 'False'),
+			'is_visible' :  page_item.get('is_visible', 'False'),
+			'meta' : page_item.get('meta') } )
+		page_item.status_msg = "Image info updated"
+		user_info.refresh()
+	if (button == 'Delete'):
+		user_info.image_manager.remove_file(image_id)
+		page_item.status_msg = "Image removed."
+		user_info.refresh()
+		return image_page(sessions_db, user_id)
 	elif (button == 'Return'):
 		return image_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
 		user_info.refresh()
-		page_item.refresh()
+	elif (button == 'Reset URL'):
+		img_item = user_info.image_manager.get_file_item_by_hash(image_id)
+		if (not img_item):
+			page_item.status_msg = "Image doesn't exist in the DB"
+			return image_page(sessions_db, user_id)
 
+		log.info(f"  - reset image info: {img_item.id}")
+		user_info.image_manager.rehash_file(image_id)
+		img_item.refresh()
+		return edit_image_page(sessions_db, user_id, img_item.id)
+		
 	return edit_image_page(sessions_db, user_id, image_id)
 
 def ImagePage(user_id):
@@ -144,20 +161,15 @@ def ImagePage(user_id):
 	page_item = user_info.page_manager.get_image_page_item()
 	image_id = page_item.get('image_id')
 	button = page_item.get('button')
-	log.info(f"page_item: {page_item}")
+	#log.info(f"page_item: {page_item}")
 
 	if (image_id and image_id != '-1'):
 		return edit_image_page(sessions_db, user_id, image_id)
 	
-	if (button == 'Update'):
-		update_files = request.form.getlist('files')
-		user_info.file_manager.update_permissions(update_files)
-		page_item.set('status_msg', f"{len(update_files)} file(s) updated")
 	elif (button == 'Return'):
 		return generate_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
 		user_info.refresh()
-		page_item.refresh()
 	elif (button == 'Playground'):
 		return playground_page(sessions_db, user_id)
 
@@ -167,20 +179,41 @@ def ProfilePage(user_id):
 	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_profile_page_item()
 	button = page_item.get('button')
+	#log.info(f"page_item: {page_item}")
+	# Don't want to cache this in page state
+	confirmed = request.form.get('confirm', "") == 'True'
 
-	if (button == 'Update'):
+	if (button == 'Reset'):
+		if (not confirmed):
+			page_item.status_msg = 'Please confirm the reset'
+			return profile_page(sessions_db, user_id)
+		LoadAPIConfig()
+		page_item.update_profile_page_state({})
+		user_info.image_manager.clean_thumbnail_dir()
+		user_info.image_manager.update_fileinfos()
+		page_item.status_msg = 'Image file links reset'
+		return profile_page(sessions_db, user_id)
+	elif (button == "Nuke Account"):
+		if (not confirmed):
+			page_item.status_msg = 'Please confirm the nuke'
+			return profile_page(sessions_db, user_id)
+		sessions_db.remove_user(user_id)
+		# TODO: Nuke account
+		return landing_page(sessions_db)
+	elif (button == 'Update'):
 		user_info.update_user_info( {
 			'user_id' : user_id,
 			'display_name' : request.form['display_name'],
 			'bio' : request.form['bio']
 		})
-		page_item.set('status_msg', "User Profile Updated")
+		page_item.status_msg = "User profile updated"
 
 	elif (button == 'Return'):
 		return generate_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
 		user_info.refresh()
-		page_item.refresh()
+	elif (button == 'Clear'):
+		page_item.update_page_state({})
 
 	return profile_page(sessions_db, user_id)
 
@@ -194,42 +227,50 @@ def Playground(user_id):
 	if (button == 'Add'):
 		count = len(files)
 		if (count < 1):
-			page_item.set('status_msg', 'Select some files')
+			page_item.status_msg = 'Select some files'
 		for file_hash in files:
-			filename = user_info.file_manager.get_filename_by_hash(file_hash)
-			src_filename = os.path.basename(filename)
+			file_item = image_item.from_hash(file_hash, user_info, sessions_db.engine)
+			src_filename = os.path.basename(file_item.filename)
 			dest_filename = f"{PLAYGROUND_FOLDER}/{user_id}/{src_filename}"
 			try:
-				# TODO: Add new file to playground!!!
 				status_msg += f"Adding to Playground: {src_filename}<br>"
-				os.makedirs(f"{PLAYGROUND_FOLDER}/{user_id}", exist_ok=True)
-				shutil.copyfile(filename, dest_filename)
-				img_info = user_info.file_manager.add_file(dest_filename)
-				user_info.file_manager.generate_thumbnail(img_info)
-
+				shutil.copyfile(file_item.filename, dest_filename)
+				img_info = image_item.from_filename(dest_filename, user_id, sessions_db.engine)
+				img_info.set('meta', file_item.meta)
+				img_info.insert_file_info()
+				user_info.image_manager.generate_thumbnail(img_info)
+				user_info.image_manager.refresh()
 			except Exception as e:
 				log.info(e)
-				status_msg += f"Error: {filename} : {e}"
-			page_item.set('status_msg', status_msg)
+				status_msg += f"Error: {file_hash} : {e}"
+			page_item.status_msg = status_msg
 			page_item.set('files', [])
 	elif (button== 'Remove'):
 		del_files = request.form.getlist('files')
-		for filename in del_files:
-			user_info.file_manager.remove_file(filename)
-		page_item.set('status_msg', f"{len(del_files)} file(s) removed")
+		num_removed = 0
+		for file_hash in del_files:
+			file_item = user_info.image_manager.get_file_item_by_hash(file_hash)
+			log.info(f"filename: {file_item}")
+			if (not file_item):
+				return image_page(sessions_db, user_id)
+			# Only delete files from playground
+			if (file_item.filename.find(PLAYGROUND_FOLDER) > -1):
+				num_removed += 1
+				user_info.image_manager.remove_file(file_hash)
+		page_item.status_msg = f"{num_removed} playground file(s) removed."
 	elif (button == 'Return'):
 		return generate_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
-		page_item.set('files', [])
-		page_item.update_page_item(page_item)
-		user_info.file_manager.refresh()
+		user_info.image_manager.refresh()
+	elif (button == 'Clear'):
+		page_item.update_page_state({})
 	elif (button == 'Image Info'):
 		return image_page(sessions_db, user_id)
 
 	return playground_page(sessions_db, user_id)
 
-def CreateThemes(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
+def CreateThemes(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_themes_page_item()
 	button = page_item.get('button')
 	
@@ -238,51 +279,43 @@ def CreateThemes(session_id):
 	if (button == 'Generate'):
 		page_item.set('theme_prompt', theme_prompt)
 		page_item.set('themes', themes)
-		return themes_page(sessions_db, session_id)
-	elif (button == 'Reset'):
-		page_item.set('theme_prompt', '')
-		page_item.set('themes', [])
-		return themes_page(sessions_db, session_id)
+	elif (button == 'Clear'):
+		page_item.update_page_state({})
 	elif (button == 'Return'):
 		page_item.set('themes', themes)
-		return generate_page(sessions_db, session_id)
+		return generate_page(sessions_db, user_id)
 
-	return themes_page(sessions_db, session_id)
+	return themes_page(sessions_db, user_id)
 
-def MakeMontage(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
+def MakeMontage(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_montage_page_item()
 	button = page_item.get('button')
 
-	if (button == 'Reset'):
-		page_item.update_page_item({})
-		user_info.file_manager.clean_thumbnail_dir()
-		user_info.file_manager.update_fileinfos()
-		return montage_page(sessions_db, session_id)
-	elif (button == 'Return'):
-		return generate_page(sessions_db, session_id)
+	if (button == 'Return'):
+		return generate_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
-		page_item.update_page_item(request.form, with_form=True)
-		user_info.file_manager.refresh()
-		return montage_page(sessions_db, session_id)
+		user_info.image_manager.refresh()
+	elif (button == "Clear"):
+		page_item.update_page_state({})
 	elif (button == 'Clean Files'):
-		return cleanup_page(sessions_db, session_id)
+		return cleanup_page(sessions_db, user_id)
 	elif (button == 'Create'):
 		image_hashes = request.form.getlist('files')
-		workbench_session_folder = f'{WORKBENCH_FOLDER}/{session_id}'
+		workbench_session_folder = f'{WORKBENCH_FOLDER}/{user_id}'
 		constrain = page_item.get('constrain', 'false') == 'true'
 		cols = int(page_item.get('cols'))
 		width = int(page_item.get('width'))
 		height = int(page_item.get('height'))
 
 		if (len(image_hashes) < 1):
-			page_item.set('status_msg', "How about selecting some files?")
+			page_item.status_msg = "How about selecting some files?"
 		else:
 			# Create montage and drop it in the workbench directory
 			try:
 				save_filename = f'{workbench_session_folder}/montage-{int(time.time())}.png'
 				os.makedirs(f'{workbench_session_folder}', exist_ok=True)
-				image_filenames = [ user_info.file_manager.get_filename_by_hash(image_hash) for image_hash in image_hashes ]
+				image_filenames = [ user_info.image_manager.get_filename_by_hash(image_hash) for image_hash in image_hashes ]
 				create_montage(save_filename, image_filenames, cols, width, height, 5, 5, 5, 5, 5, constrain)
 
 				img = Image.open(save_filename)
@@ -292,86 +325,87 @@ def MakeMontage(session_id):
 				img.save(save_filename, pnginfo=metadata)
 				img.close()
 
-				img_info = image_item.from_filename(save_filename, session_id, sessions_db.engine)
+				img_info = image_item.from_filename(save_filename, user_id, sessions_db.engine)
 				img_info.insert_file_info()
-				user_info.file_manager.generate_thumbnail(img_info)
-				user_info.file_manager.refresh()
+				user_info.image_manager.generate_thumbnail(img_info)
+				user_info.image_manager.refresh()
 				#log.info(f"Montage: {img_info}")
-				page_item.set('status_msg', f"Montage created.<br><br><a href='/share/{img_info.hash}' title='{img_info.get_title_text(session_id)}' target='_'><img class='img-thumbnail' src='/share/{img_info.thumbnail}' width='128' height='128'></a>")
+				page_item.status_msg = f"Montage created.<br><br><a href='/share/{img_info.id}' title='{img_info.get_title_text(user_id)}' target='_'><img class='img-thumbnail' src='/share/{img_info.thumbnail}' width='128' height='128'></a>"
 			except Exception as e:
 				log.info(traceback.print_exc())
-				page_item.set('status_msg', "Error with montage creation")
+				page_item.status_msg = "Error with montage creation"
 	
-	return montage_page(sessions_db, session_id)
+	return montage_page(sessions_db, user_id)
 
-def UpscaleFile(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
-	page_item = user_info.page_manager.get_upscale_page_item()
+def UpscaleFile(user_id):
+	user_item = sessions_db.get_user_by_id(user_id)
+	page_item = user_item.page_manager.get_upscale_page_item()
 	button = page_item.get('button', '')
 	image_hash = page_item.get('upscale_image')
 
 	if (button == "Upscale"):
 		if (image_hash == 'none'):
-			page_item.set('status_msg', 'Select an image to upscale')
+			page_item.status_msg = "Select an image to upscale"
 		else:
-			img_info = image_item.from_hash(image_hash, session_id, sessions_db.engine)
-			save_filename = f'{WORKBENCH_FOLDER}/{session_id}/{int(time.time())}-upscaled-{os.path.basename(img_info.filename)}'
-			upscaled_resp = generate_upscaling(page_item, encode_pil_to_base64(Image.open(img_info.filename)))
+			img_item = image_item.from_hash(image_hash, user_id, sessions_db.engine)
+			save_filename = f'{WORKBENCH_FOLDER}/{user_id}/{int(time.time())}-upscaled-{os.path.basename(img_item.filename)}'
+			upscaled_resp = generate_upscaling(page_item, encode_pil_to_base64(Image.open(img_item.filename)))
 			upscaled_image = decode_base64_to_image(f"data:image/png;base64,{upscaled_resp['image']}")
 			upscaled_image.save(save_filename)
-			user_info.file_manager.add_file(save_filename)
-			user_info.file_manager.generate_thumbnail(img_info)
+
+			upscaled_meta = f"{page_item.get('scale')}x upscale image"
+			metadata = PngInfo()
+			metadata.add_text("info", upscaled_meta)
+			upscaled_image.save(save_filename, pnginfo=metadata)
+			upscaled_image.close()
+
+			upscaled_item = user_item.image_manager.add_file(save_filename)
+			user_item.image_manager.generate_thumbnail(upscaled_item)
 	elif (button == 'Return'):
-		return generate_page(sessions_db, session_id)
-	elif (button == 'Reset'):
-		page_item.update_page_item({})
-		user_info.file_manager.clean_thumbnail_dir()
-		user_info.file_manager.update_fileinfos()
+		return generate_page(sessions_db, user_id)
 	elif (button == 'Clean Files'):
-		return cleanup_page(sessions_db, session_id)
+		return cleanup_page(sessions_db, user_id)
 	elif (button == 'Refresh'):
-		page_item.update_page_item(page_item)
-		user_info.file_manager.refresh()
+		user_item.image_manager.refresh()
+	elif (button == "Clear"):
+		page_item.update_page_state({})
 
-	return upscale_page(sessions_db, session_id)
+	return upscale_page(sessions_db, user_id)
 
-def CleanUp(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
+def CleanUp(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_cleanup_page_item()
 	button = page_item.get('button')
 
 	if (button == "Return"):
-		return generate_page(sessions_db, session_id)
+		return generate_page(sessions_db, user_id)
 	elif (button == "Refresh"):
-		page_item.update_page_item(request.form, with_form=True)
-		user_info.file_manager.refresh()
-		return cleanup_page(sessions_db, session_id)
+		user_info.image_manager.refresh()
+		return cleanup_page(sessions_db, user_id)
+	elif (button == "Clear"):
+		page_item.update_page_state({})
 	elif (button == 'Delete'):
 		del_files = request.form.getlist('files')
 		for filename in del_files:
-			user_info.file_manager.remove_file(filename)
+			user_info.image_manager.remove_file(filename)
 
-		page_item.set('status_msg', f"{len(del_files)} file(s) removed")
-		user_info.file_manager.refresh()
-	return cleanup_page(sessions_db, session_id)
+		page_item.status_msg = f"{len(del_files)} file(s) removed"
+		user_info.image_manager.refresh()
+	return cleanup_page(sessions_db, user_id)
 
-def GenerateStatusMsg(session_id):
-	status = ""
-	progress_info = generate_progress(session_id)
-	# Check if we're working
-	state_info = progress_info.get('state', {})
-	if (int(state_info.get('sampling_step', 0)) > 0):
-		sampling_step = int(state_info.get('sampling_step', 0))
-		sampling_steps = int(state_info.get('sampling_steps', 0))
-		progress_percent = sampling_step / min(1, sampling_steps)
-		log.info(progress_percent)
-		status += f"GPU: Rendering {progress_percent}% complete..."
+def GenerateStatusMsg(user_id):
+	status = "Okie Dokie!<br>"
+	progress_info = generate_progress(user_id)
+	progress_percent = progress_info.get('progress', 0.0) * 100.0
+	if ( progress_percent > 0.0):
+		status = f"Rendering<br>Progress: {int(progress_percent)}% complete...<br>"
+		status += f"Remaining: ~{int(progress_info.get('eta_relative', 'N/A'))}s"
 	else:
-		status = "GPU: Idle"
+		status += "GPU: Idle"
 	return status
 
-def GenerateImage(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
+def GenerateImage(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_generate_page_item()
 
 	button = page_item.get('button')
@@ -379,69 +413,83 @@ def GenerateImage(session_id):
 	seed = int(page_item.get('seed'))
 	page_item.set('seed', randint(0, 2**32) if seed < 0 else seed)
 
-	if (button == 'Reset'):
+
+	if (button == "Refresh"):
 		LoadAPIConfig()
-		page_item.update_generate_page_state({})
-		user_info.file_manager.clean_thumbnail_dir()
-		user_info.file_manager.update_fileinfos()
-		return generate_page(sessions_db, session_id)
-	elif (button == "Refresh"):
-		LoadAPIConfig()
-		page_item.update_generate_page_state(page_item)
-		user_info.file_manager.refresh()
-		page_item.set('status_msg', "<br>" + GenerateStatusMsg(session_id))
-		return generate_page(sessions_db, session_id)
+		user_info.refresh()
+		page_item.status_msg = GenerateStatusMsg(user_id)
+		return generate_page(sessions_db, user_id)
 	elif (button == "Clean Files"):
-		return cleanup_page(sessions_db, session_id)
+		return cleanup_page(sessions_db, user_id)
+	elif (button == "Clear"):
+		page_item.update_page_state({})
+		return generate_page(sessions_db, user_id)
 	elif (button == "Upscale"):
-		return upscale_page(sessions_db, session_id)
+		return upscale_page(sessions_db, user_id)
 	elif (button == "Upload"):
-		return upload_page(sessions_db, session_id)
+		return upload_page(sessions_db, user_id)
 	elif (button == "Themes"):
-		return themes_page(sessions_db, session_id)
+		return themes_page(sessions_db, user_id)
 	elif (button == "Montage"):
-		return montage_page(sessions_db, session_id)
+		return montage_page(sessions_db, user_id)
 	elif (button == "Playground"):
-		return playground_page(sessions_db, session_id)
+		return playground_page(sessions_db, user_id)
 	elif (button == "Profile"):
-		return profile_page(sessions_db, session_id)
+		return profile_page(sessions_db, user_id)
 	elif (button == "Image Info"):
-		return image_page(sessions_db, session_id)
-	else: # (button == 'Generate'):
+		return image_page(sessions_db, user_id)
+	else:
 		log.info(f'Generating:')
 
 		[ log.info(f'  {k}: {v}') for k,v in page_item.page_state.items() ]
-		session_output_folder = f'{GENERATED_FOLDER}/{clean_name(session_id)}'
-		os.makedirs(session_output_folder, exist_ok=True)
 
 		toc = time.time()
-
 		# Update model if the value has changed
 		generate_options(page_item)
 		if (page_item.get('init_image', 'none') == 'none'):
 			generated_resp = generate_txt2img(page_item)
 		else:
 			image_hash = page_item['init_image']
-			file_info = user_info.file_manager.get_filename_by_hash(image_hash)
+			file_info = user_info.image_manager.get_filename_by_hash(image_hash)
 			generated_resp = generate_img2img(page_item, encode_pil_to_base64(Image.open(file_info.filename)))
 
 		generated_images = generated_resp.get('images', [])
 		index = 0
 		for image_b64 in generated_images:
 			prompt_filename = clean_name(prompt[0:20]) if len(prompt) > 0 else 'BLANK'
-			output_filename = f'{session_output_folder}/{prompt_filename}-{index:05}.png'
+			output_filename = f'{GENERATED_FOLDER}/{user_id}/{prompt_filename}-{index:05}.png'
 			# Make sure we don't write over existing images
 			while os.path.exists(output_filename):
 				index += 1
-				output_filename = f'{session_output_folder}/{prompt_filename}-{index:05}.png'
-			log.info(f'Saving image to {output_filename}')
-			with open(output_filename, "wb") as fp:
-				fp.write(base64.b64decode(image_b64))
-			img_info = user_info.file_manager.add_file(output_filename)
-			user_info.file_manager.generate_thumbnail(img_info)
+				output_filename = f'{GENERATED_FOLDER}/{user_id}/{prompt_filename}-{index:05}.png'
+			log.info(f"Saving image to {output_filename} [{page_item.get('width')}x{page_item.get('height')}]")
+			img = decode_base64_to_image(f"data:image/png;base64,{image_b64}")
+			
+			info = ""
+			for item in [
+				('prompt', 'Prompt'),
+				('neg_prompt', 'Neg Prompt'),
+				('init_image', 'Init Image'),
+				('model', 'Model'),
+				('steps', 'Steps'),
+				('batch_size', 'Samples'),
+				('batches', 'Batches'),
+				('scale', 'Init Scale'),
+				('strength', 'Strength'),
+				('cfg_scale', 'Weight') ]:
+				info += f"{item[1]}: {page_item.get(item[0])}\n"
+			# Clear out any metadata
+			metadata = PngInfo()
+			img.save(output_filename, pnginfo=metadata)
+			img.close()
+
+			img_item = image_item.from_filename(output_filename, user_id, sessions_db.engine)
+			img_item.set('meta', info[:-1])
+			img_item.insert_file_info()
+			user_info.image_manager.generate_thumbnail(img_item)
 			
 		if (len(generated_images) < 1):
-			page_item.set('status_msg', "Failed to generate pictures.  Lower resolution and/or the number of samples.")
+			page_item.status_msg = "Failed to generate pictures.  Lower resolution and/or the number of samples."
 		else:
 			# Make a nice little success status message
 			infotexts = json.loads(generated_resp['info'])['infotexts'][0]
@@ -452,46 +500,46 @@ def GenerateImage(session_id):
 			infotexts = infotexts.replace(",", " |")
 			# Wrap quotes around the prompt
 			infotexts = f'Last Prompt: {prompt}<br>{infotexts}'
-			page_item.set('status_msg', f"{len(generated_images)} images generated in {time.time() - toc} sec.<br>{infotexts}")
+			page_item.status_msg = f"{len(generated_images)} images generated in {time.time() - toc} sec.<br>{infotexts}"
+			user_info.image_manager.refresh()
 
-	return generate_page(sessions_db, session_id)
+	return generate_page(sessions_db, user_id)
 
-def UploadFile(session_id):
-	user_info = sessions_db.get_user_by_id(session_id)
+def UploadFile(user_id):
+	user_info = sessions_db.get_user_by_id(user_id)
 	page_item = user_info.page_manager.get_upload_page_item()
 	button = page_item.get('button')
 
 	if (button == 'Return'):
-		return generate_page(sessions_db, session_id)
+		return generate_page(sessions_db, user_id)
 	elif (button == "Refresh"):
 		LoadAPIConfig()
-		page_item.update_page_item(page_item)
-		user_info.file_manager.refresh()
-		page_item.set('status_msg', "<br>" + GenerateStatusMsg(session_id))
-		return upload_page(sessions_db, session_id)
+		user_info.image_manager.refresh()
+		page_item.set_status = "<br>" + GenerateStatusMsg(user_id)
+		return upload_page(sessions_db, user_id)
 	elif (button == "Clear"):
-		page_item.update_page_item(page_item)
-		return upload_page(sessions_db, session_id)
+		page_item.update_page_state({})
+		return upload_page(sessions_db, user_id)
 	elif (button == 'Clean Files'):
-		return cleanup_page(sessions_db, session_id)
+		return cleanup_page(sessions_db, user_id)
 
 	for file_info in request.files.getlist('file'):
 		# If the user does not select a file, the browser submits an
 		# empty file without a filename.
 		if file_info.filename == '':
-			page_item.set('status_msg', "Select a file, doofus!")
-			return upload_page(sessions_db, session_id)
+			page_item.status_msg = "Select a file, doofus!"
+			return upload_page(sessions_db, user_id)
 
 		log.info(f"Uploading file: {file_info.filename}")
 		if file_info and allowed_file(file_info.filename):
-			os.makedirs(f'{WORKBENCH_FOLDER}/{session_id}', exist_ok=True)
-			save_filename = f'{WORKBENCH_FOLDER}/{session_id}/{secure_filename(file_info.filename)}'
+			os.makedirs(f'{WORKBENCH_FOLDER}/{user_id}', exist_ok=True)
+			save_filename = f'{WORKBENCH_FOLDER}/{user_id}/{secure_filename(file_info.filename)}'
 			file_info.save(save_filename)
-			img_info = user_info.file_manager.add_file(save_filename)
-			user_info.file_manager.generate_thumbnail(img_info)
-			page_item.set('status_msg', f"File uploaded {file_info.filename}")
+			img_info = user_info.image_manager.add_file(save_filename)
+			user_info.image_manager.generate_thumbnail(img_info)
+			page_item.status_msg = f"File uploaded {file_info.filename}"
 
-	return upload_page(sessions_db, session_id)
+	return upload_page(sessions_db, user_id)
 
 @app.route("/share/<string:share_uuid>")
 def ShareFile(share_uuid):
